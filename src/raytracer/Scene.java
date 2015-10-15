@@ -4,15 +4,15 @@ import math.Vec3D;
 
 public class Scene {
     public Object[] objects;
-    public Light light;
+    public Light[] lights;
     public Camera camera;
     public Vec3D backgroundColor = new Vec3D(0.03, 0.07, 0.16);
     public double ambientLight = 0.0;
     public double bias = 1e-9;
 
-    public Scene(Object[] objects, Light light, Camera camera) {
+    public Scene(Object[] objects, Light[] lights, Camera camera) {
         this.objects = objects;
-        this.light = light;
+        this.lights = lights;
         this.camera = camera;
     }
 
@@ -38,19 +38,21 @@ public class Scene {
         if (isect.hitObject != null) {
             Vec3D hitPoint = ray.origin.add(ray.direction.multiply(isect.tNear));
             Vec3D hitNormal = isect.hitObject.getSurfaceProperties(hitPoint);
-            Illumination illumination = light.illuminate(hitPoint);
-
-            Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)), illumination.lightDirection.multiply(-1));
-            Intersection shadowIsect = new Intersection();
-            shadowIsect.tNear = illumination.distance;
-            trace(shadowRay, shadowIsect);
-            boolean visible = shadowIsect.hitObject == null;
-
             Vec3D hitColor = new Vec3D();
-            if (visible) {
-                hitColor = illumination.lightIntensity.multiply(
-                        Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1))))
-                        .multiply(isect.hitObject.albedo);
+
+            for (Light light : lights) {
+                Illumination illumination = light.illuminate(hitPoint);
+                Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)), illumination.lightDirection.multiply(-1));
+                Intersection shadowIsect = new Intersection();
+                shadowIsect.tNear = illumination.distance;
+                trace(shadowRay, shadowIsect);
+                boolean visible = shadowIsect.hitObject == null;
+
+                if (visible) {
+                    hitColor = hitColor.add(illumination.lightIntensity.multiply(
+                            Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1))))
+                            .multiply(isect.hitObject.albedo));
+                }
             }
             hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
             if (hitColor.getX() > 1) hitColor.setX(1);
