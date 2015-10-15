@@ -28,9 +28,11 @@ class MyPanel extends JPanel {
     public MyPanel() {
         // Create scene
         Camera camera = new Camera();
+        camera.cameraToWorld = camera.cameraToWorld.rotate(0, 0, 0);
         Object[] objects = new Object[] {
                 new Sphere(new Matrix44D().translate(0, 0, -25), 5, new Vec3D(0.92, 0.13, 0.06)),
-                new Sphere(new Matrix44D().translate(-5, 5.5, -22), 2.5, new Vec3D(0.28, 0.42, 0.09))};
+                /*new Sphere(new Matrix44D().translate(-5, 5.5, -22), 2.5, new Vec3D(0.28, 0.42, 0.09)),*/
+                new Plane(new Matrix44D().translate(0, -5, 0), new Vec3D(0.06, 0.31, 0.01))};
         Light light = new DistantLight(new Matrix44D().rotate(-45, -45, 0), new Vec3D(1, 1, 1), 1);
 
         Scene scene = new Scene(objects, light, camera);

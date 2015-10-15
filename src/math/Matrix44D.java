@@ -48,6 +48,9 @@ public class Matrix44D {
     }
 
     public Matrix44D rotate(double x, double y, double z) {
+        x = Math.toRadians(x);
+        y = Math.toRadians(y);
+        z = Math.toRadians(z);
         return this
                 .multiply(new Matrix44D(1, 0, 0, 0, 0, Math.cos(x), Math.sin(x), 0, 0, -Math.sin(x), Math.cos(x), 0, 0, 0, 0, 1))
                 .multiply(new Matrix44D(Math.cos(y), 0, -Math.sin(y), 0, 0, 1, 0, 0, Math.sin(y), 0, Math.cos(y), 0, 0, 0, 0, 1))
