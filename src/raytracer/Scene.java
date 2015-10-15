@@ -39,22 +39,29 @@ public class Scene {
             Vec3D hitPoint = ray.origin.add(ray.direction.multiply(isect.tNear));
             Vec3D hitNormal = isect.hitObject.getSurfaceProperties(hitPoint);
             Vec3D hitColor = new Vec3D();
-
-            for (Light light : lights) {
-                Illumination illumination = light.illuminate(hitPoint);
-                Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)), illumination.lightDirection.multiply(-1));
-                Intersection shadowIsect = new Intersection();
-                shadowIsect.tNear = illumination.distance;
-                trace(shadowRay, shadowIsect);
-                boolean visible = shadowIsect.hitObject == null;
-
-                if (visible) {
-                    hitColor = hitColor.add(illumination.lightIntensity.multiply(
-                            Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1))))
-                            .multiply(isect.hitObject.albedo));
-                }
+            switch (isect.hitObject.materialType) {
+                case PHONG:
+                    Vec3D diffuse = new Vec3D(), specular = new Vec3D();
+                    for (Light light : lights) {
+                        Illumination illumination = light.illuminate(hitPoint);
+                        Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)), illumination.lightDirection.multiply(-1));
+                        Intersection shadowIsect = new Intersection();
+                        shadowIsect.tNear = illumination.distance;
+                        trace(shadowRay, shadowIsect);
+                        boolean visible = shadowIsect.hitObject == null;
+                        if (visible) {
+                            diffuse = diffuse.add(illumination.lightIntensity.multiply(
+                                    Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1))))
+                                    .multiply(isect.hitObject.albedo));
+                            Vec3D r = reflect(illumination.lightDirection, hitNormal);
+                            specular = specular.add(illumination.lightIntensity.multiply(
+                                    Math.pow(Math.max(0, r.dotProduct(ray.direction.multiply(-1))), isect.hitObject.n)));
+                        }
+                    }
+                    hitColor = diffuse.multiply(isect.hitObject.kd).add(specular.multiply(isect.hitObject.ks));
+                    break;
             }
-            hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
+            //hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
             if (hitColor.getX() > 1) hitColor.setX(1);
             if (hitColor.getY() > 1) hitColor.setY(1);
             if (hitColor.getZ() > 1) hitColor.setZ(1);
@@ -70,5 +77,9 @@ public class Scene {
                 isect.hitObject = object;
             }
         }
+    }
+
+    private Vec3D reflect(Vec3D incident, Vec3D normal) {
+        return incident.subtract(normal.multiply(2 * incident.dotProduct(normal)));
     }
 }

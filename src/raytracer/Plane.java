@@ -7,14 +7,13 @@ public class Plane extends Object {
     private Vec3D point;
     private Vec3D normal;
 
-    public Plane(Matrix44D objectToWorld, Vec3D albedo) {
+    public Plane(Matrix44D objectToWorld, Vec3D albedo, MaterialType materialType) {
         this.objectToWorld = objectToWorld;
         worldToObject = objectToWorld.inverse();
         this.albedo = albedo;
         point = objectToWorld.multiplyPoint(new Vec3D());
         normal = objectToWorld.multiplyDirection(new Vec3D(0, -1, 0));
-        //point = new Vec3D(0, -5, 0);
-        //normal = new Vec3D(0, -1, 0);
+        this.materialType = materialType;
     }
 
     @Override

@@ -9,13 +9,14 @@ public class Sphere extends Object {
     private double radius, radius2;
     private Vec3D center;
 
-    public Sphere(Matrix44D objectToWorld, double radius, Vec3D albedo) {
+    public Sphere(Matrix44D objectToWorld, double radius, Vec3D albedo, MaterialType materialType) {
         this.objectToWorld = objectToWorld;
         worldToObject = objectToWorld.inverse();
         center = objectToWorld.multiplyPoint(new Vec3D());
         this.radius = radius;
         radius2 = radius * radius;
         this.albedo = albedo;
+        this.materialType = materialType;
     }
 
     @Override
