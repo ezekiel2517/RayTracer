@@ -43,6 +43,17 @@ public class Matrix44D {
         return res;
     }
 
+    public Matrix44D translate(double x, double y, double z) {
+        return this.multiply(new Matrix44D(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1));
+    }
+
+    public Matrix44D rotate(double x, double y, double z) {
+        return this
+                .multiply(new Matrix44D(1, 0, 0, 0, 0, Math.cos(x), Math.sin(x), 0, 0, -Math.sin(x), Math.cos(x), 0, 0, 0, 0, 1))
+                .multiply(new Matrix44D(Math.cos(y), 0, -Math.sin(y), 0, 0, 1, 0, 0, Math.sin(y), 0, Math.cos(y), 0, 0, 0, 0, 1))
+                .multiply(new Matrix44D(Math.cos(z), Math.sin(z), 0, 0, -Math.sin(z), Math.cos(z), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+    }
+
     public Matrix44D transpose() {
         Matrix44D res = new Matrix44D();
         for (int row = 0; row < 4; row++) {
