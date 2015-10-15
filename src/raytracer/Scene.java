@@ -3,14 +3,15 @@ package raytracer;
 import math.Vec3D;
 
 public class Scene {
-    public Object object;
+    public Object[] objects;
     public Light light;
     public Camera camera;
     public Vec3D backgroundColor = new Vec3D(0.03, 0.07, 0.16);
-    public double ambientLight = 0.05;
+    public double ambientLight = 0.0;
+    public double bias = 1e-9;
 
-    public Scene(Object object, Light light, Camera camera) {
-        this.object = object;
+    public Scene(Object[] objects, Light light, Camera camera) {
+        this.objects = objects;
         this.light = light;
         this.camera = camera;
     }
@@ -32,14 +33,26 @@ public class Scene {
     }
 
     private Vec3D castRay(Ray ray) {
-        Double tNear = trace(ray);
-        if (tNear != null) {
-            Vec3D hitPoint = ray.origin.add(ray.direction.multiply(tNear));
-            Vec3D hitNormal = object.getSurfaceProperties(hitPoint);
+        Intersection isect = new Intersection();
+        trace(ray, isect);
+        if (isect.hitObject != null) {
+            Vec3D hitPoint = ray.origin.add(ray.direction.multiply(isect.tNear));
+            Vec3D hitNormal = isect.hitObject.getSurfaceProperties(hitPoint);
             Illumination illumination = light.illuminate(hitPoint);
-            Vec3D hitColor =  illumination.lightIntensity.multiply(
-                    Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1)))).multiply(object.albedo);
-            hitColor = hitColor.add(object.albedo.multiply(ambientLight));
+
+            Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)), illumination.lightDirection.multiply(-1));
+            Intersection shadowIsect = new Intersection();
+            shadowIsect.tNear = illumination.distance;
+            trace(shadowRay, shadowIsect);
+            boolean visible = shadowIsect.hitObject == null;
+
+            Vec3D hitColor = new Vec3D();
+            if (visible) {
+                hitColor = illumination.lightIntensity.multiply(
+                        Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1))))
+                        .multiply(isect.hitObject.albedo);
+            }
+            hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
             if (hitColor.getX() > 1) hitColor.setX(1);
             if (hitColor.getY() > 1) hitColor.setY(1);
             if (hitColor.getZ() > 1) hitColor.setZ(1);
@@ -47,7 +60,13 @@ public class Scene {
         } else return backgroundColor;
     }
 
-    private Double trace(Ray ray) {
-        return object.intersect(ray);
+    private void trace(Ray ray, Intersection isect) {
+        for (Object object : objects) {
+            Double tNear = object.intersect(ray);
+            if (tNear != null && tNear < isect.tNear) {
+                isect.tNear = tNear;
+                isect.hitObject = object;
+            }
+        }
     }
 }
