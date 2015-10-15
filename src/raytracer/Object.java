@@ -4,7 +4,7 @@ import math.Matrix44D;
 import math.Vec3D;
 
 public abstract class Object {
-    public enum MaterialType {PHONG}
+    public enum MaterialType {PHONG, REFLECTIVE}
     protected Matrix44D objectToWorld, worldToObject;
     protected Vec3D albedo;
     protected MaterialType materialType;

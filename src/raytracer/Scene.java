@@ -9,6 +9,7 @@ public class Scene {
     public Vec3D backgroundColor = new Vec3D(0.03, 0.07, 0.16);
     public double ambientLight = 0.0;
     public double bias = 1e-9;
+    public int maxDepth = 10;
 
     public Scene(Object[] objects, Light[] lights, Camera camera) {
         this.objects = objects;
@@ -26,13 +27,14 @@ public class Scene {
                 double x = (2 * (i + 0.5) / width - 1) * imageAspectRatio * scale;
                 double y = (1 - 2 * (j + 0.5) / height) * scale;
                 Vec3D direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1));
-                pixels[j][i] = castRay(new Ray(origin, direction));
+                pixels[j][i] = castRay(new Ray(origin, direction), 0);
             }
         }
         return pixels;
     }
 
-    private Vec3D castRay(Ray ray) {
+    private Vec3D castRay(Ray ray, int depth) {
+        if (depth > maxDepth) return backgroundColor;
         Intersection isect = new Intersection();
         trace(ray, isect);
         if (isect.hitObject != null) {
@@ -59,6 +61,13 @@ public class Scene {
                         }
                     }
                     hitColor = diffuse.multiply(isect.hitObject.kd).add(specular.multiply(isect.hitObject.ks));
+                    break;
+                case REFLECTIVE:
+                    boolean outside = ray.direction.dotProduct(hitNormal) < 0;
+                    Vec3D bias = hitNormal.multiply(this.bias);
+                    Vec3D r = reflect(ray.direction, hitNormal).normalize();
+                    Vec3D orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
+                    hitColor = castRay(new Ray(orig, r), depth + 1).multiply(0.75);
                     break;
             }
             //hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
