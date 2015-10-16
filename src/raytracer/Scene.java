@@ -1,5 +1,6 @@
 package raytracer;
 
+import math.Utils;
 import math.Vec3D;
 
 public class Scene {
@@ -27,7 +28,7 @@ public class Scene {
                 double x = (2 * (i + 0.5) / width - 1) * imageAspectRatio * scale;
                 double y = (1 - 2 * (j + 0.5) / height) * scale;
                 Vec3D direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1));
-                pixels[j][i] = castRay(new Ray(origin, direction), 0);
+                pixels[j][i] = castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0);
             }
         }
         return pixels;
@@ -46,7 +47,8 @@ public class Scene {
                     Vec3D diffuse = new Vec3D(), specular = new Vec3D();
                     for (Light light : lights) {
                         Illumination illumination = light.illuminate(hitPoint);
-                        Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)), illumination.lightDirection.multiply(-1));
+                        Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)),
+                                illumination.lightDirection.multiply(-1), Ray.RayType.PRIMARY_RAY);
                         Intersection shadowIsect = new Intersection();
                         shadowIsect.tNear = illumination.distance;
                         trace(shadowRay, shadowIsect);
@@ -67,7 +69,23 @@ public class Scene {
                     Vec3D bias = hitNormal.multiply(this.bias);
                     Vec3D r = reflect(ray.direction, hitNormal).normalize();
                     Vec3D orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
-                    hitColor = castRay(new Ray(orig, r), depth + 1).multiply(0.75);
+                    hitColor = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1).multiply(0.75);
+                    break;
+                case REFLECTIVE_AND_REFRACTIVE:
+                    Vec3D refractionColor = new Vec3D();
+                    Vec3D reflectionColor = new Vec3D();
+                    double kr = fresnel(ray.direction, hitNormal, isect.hitObject.ior);
+                    outside = ray.direction.dotProduct(hitNormal) < 0;
+                    bias = hitNormal.multiply(this.bias);
+                    if (kr < 1) {
+                        Vec3D refractionDirection = refract(ray.direction, hitNormal, isect.hitObject.ior).normalize();
+                        Vec3D refractionRayOrig = outside ? hitPoint.subtract(bias) : hitPoint.add(bias);
+                        refractionColor = castRay(new Ray(refractionRayOrig, refractionDirection, Ray.RayType.PRIMARY_RAY), depth + 1);
+                    }
+                    r = reflect(ray.direction, hitNormal).normalize();
+                    orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
+                    reflectionColor = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1);
+                    hitColor = hitColor.add(reflectionColor.multiply(kr).add(refractionColor.multiply(1 - kr)));
                     break;
             }
             //hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
@@ -82,6 +100,8 @@ public class Scene {
         for (Object object : objects) {
             Double tNear = object.intersect(ray);
             if (tNear != null && tNear < isect.tNear) {
+                if (ray.type == Ray.RayType.SHADOW_RAY && object.materialType == Object.MaterialType.REFLECTIVE_AND_REFRACTIVE)
+                    continue;
                 isect.tNear = tNear;
                 isect.hitObject = object;
             }
@@ -90,5 +110,45 @@ public class Scene {
 
     private Vec3D reflect(Vec3D incident, Vec3D normal) {
         return incident.subtract(normal.multiply(2 * incident.dotProduct(normal)));
+    }
+
+    private Vec3D refract(Vec3D incident, Vec3D normal, double ior) {
+        double cosi = Utils.clamp(-1, 1, incident.dotProduct(normal));
+        double etai = 1, etat = ior;
+        Vec3D n = normal;
+        if (cosi < 0)
+            cosi = -cosi;
+        else {
+            double tmp = etai;
+            etai = etat;
+            etat = tmp;
+            n = n.multiply(-1);
+        }
+        double eta = etai / etat;
+        double k = 1 - eta * eta * (1 - cosi * cosi);
+        return k < 0 ? new Vec3D() : incident.multiply(eta).add(n.multiply(eta - cosi * Math.sqrt(k)));
+
+    }
+
+    private double fresnel(Vec3D incident, Vec3D normal, double ior) {
+        double kr;
+        double cosi = Utils.clamp(-1, 1, incident.dotProduct(normal));
+        double etai = 1, etat = ior;
+        if (cosi > 0) {
+            double tmp = etai;
+            etai = etat;
+            etat = tmp;
+        }
+        double sint = etai / etat * Math.sqrt(Math.max(0, 1 - cosi * cosi));
+        if (sint >= 1)
+            kr = 1;
+        else {
+            double cost = Math.sqrt(Math.max(0, 1 - sint * sint));
+            cosi = Math.abs(cosi);
+            double Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+            double Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+            kr = (Rs * Rs + Rp * Rp) / 2;
+        }
+        return kr;
     }
 }

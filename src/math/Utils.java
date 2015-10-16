@@ -10,4 +10,8 @@ public class Utils {
         double q = b > 0 ? -0.5 * (b + Math.sqrt(discr)) :  -0.5 * (b - Math.sqrt(discr));
         return new QuadraticRoots(q / a, c / q);
     }
+
+    public static double clamp(double lo, double hi, double v) {
+        return Math.max(lo, Math.max(hi, v));
+    }
 }

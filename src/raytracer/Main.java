@@ -28,15 +28,17 @@ class MyPanel extends JPanel {
     public MyPanel() {
         // Create scene
         Camera camera = new Camera();
-        camera.cameraToWorld = camera.cameraToWorld.rotate(0, 0, 0).translate(0, 0, 0);
+        camera.cameraToWorld = camera.cameraToWorld.rotate(-10, 0, 0).translate(0, 3, 0);
         Object[] objects = new Object[] {
-                new Sphere(new Matrix44D().translate(5, 0, -20), 5, new Vec3D(0.92, 0.13, 0.06), Object.MaterialType.PHONG),
-                new Sphere(new Matrix44D().translate(0, 0, -30), 5, new Vec3D(0.92, 0.83, 0.06), Object.MaterialType.PHONG),
-                new Sphere(new Matrix44D().translate(-10, 0, -25), 5, new Vec3D(0.28, 0.42, 0.09), Object.MaterialType.REFLECTIVE),
+                new Sphere(new Matrix44D().translate(0, 0, -20), 5, new Vec3D(0.92, 0.13, 0.06), Object.MaterialType.REFLECTIVE_AND_REFRACTIVE),
+                /*new Sphere(new Matrix44D().translate(2, 7, -40), 7, new Vec3D(0.92, 0.83, 0.06), Object.MaterialType.PHONG),
+                new Sphere(new Matrix44D().translate(-6, 0, -31), 5, new Vec3D(0.28, 0.42, 0.09), Object.MaterialType.PHONG),
+                new Sphere(new Matrix44D().translate(-2, -2.5, -17), 2.5, new Vec3D(0.28, 0.42, 0.09), Object.MaterialType.REFLECTIVE),*/
                 new Plane(new Matrix44D().translate(0, -5, 0), new Vec3D(0.06, 0.31, 0.01), Object.MaterialType.PHONG)};
         Light[] lights = new Light[] {
-                new DistantLight(new Matrix44D().rotate(-45, -45, 0), new Vec3D(1, 1, 1), 1),
-                new PointLight(new Matrix44D().translate(0, 20, -10), new Vec3D(1, 1, 1), 0)};
+                new DistantLight(new Matrix44D().rotate(-90, 0, 45), new Vec3D(1, 1, 1), 0),
+                new PointLight(new Matrix44D().translate(5, 10, -25), new Vec3D(1, 1, 1), 4000),
+                new PointLight(new Matrix44D().translate(-5, 10, -15), new Vec3D(1, 1, 1), 4000)};
         //objects[4].kd = 1;
         //objects[4].ks = 0;
 

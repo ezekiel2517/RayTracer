@@ -4,8 +4,8 @@ import math.Matrix44D;
 import math.Vec3D;
 
 public class Plane extends Object {
-    private Vec3D point;
-    private Vec3D normal;
+    public Vec3D point;
+    public Vec3D normal;
 
     public Plane(Matrix44D objectToWorld, Vec3D albedo, MaterialType materialType) {
         this.objectToWorld = objectToWorld;
