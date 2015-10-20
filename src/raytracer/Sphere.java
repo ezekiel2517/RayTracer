@@ -1,9 +1,6 @@
 package raytracer;
 
-import math.Matrix44D;
-import math.QuadraticRoots;
-import math.Utils;
-import math.Vec3D;
+import math.*;
 
 public class Sphere extends Object {
     private double radius, radius2;
@@ -43,7 +40,14 @@ public class Sphere extends Object {
     }
 
     @Override
-    public Vec3D getSurfaceProperties(Vec3D hitPoint) {
-        return hitPoint.subtract(center).normalize();
+    public SurfaceProperties getSurfaceProperties(Vec3D hitPoint) {
+        Vec3D hitNormal = hitPoint.subtract(center).normalize();
+        Vec2D hitTextureCoordinates = new Vec2D();
+        hitTextureCoordinates.x = 1 + (Math.atan2(hitNormal.getZ(), hitNormal.getX()) / Math.PI) * 0.5;
+        hitTextureCoordinates.y = Math.acos(hitNormal.getY()) / Math.PI;
+        SurfaceProperties props = new SurfaceProperties();
+        props.hitNormal = hitNormal;
+        props.hitTextureCoordinates = hitTextureCoordinates;
+        return props;
     }
 }

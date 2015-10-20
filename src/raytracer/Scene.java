@@ -11,6 +11,7 @@ public class Scene {
     public double ambientLight = 0.0;
     public double bias = 1e-9;
     public int maxDepth = 10;
+    public int aa = 1;
 
     public Scene(Object[] objects, Light[] lights, Camera camera) {
         this.objects = objects;
@@ -23,12 +24,25 @@ public class Scene {
         double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
         double imageAspectRatio = width / (double) height;
         Vec3D origin = camera.cameraToWorld.multiplyPoint(new Vec3D());
+        double b = 1;
+        double c = 1;
+        double factor = 1.0 / (aa * aa);
         for (int j = 0; j < height; j++) {
             for (int i = 0; i < width; i++) {
-                double x = (2 * (i + 0.5) / width - 1) * imageAspectRatio * scale;
-                double y = (1 - 2 * (j + 0.5) / height) * scale;
-                Vec3D direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1));
-                pixels[j][i] = castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0);
+                pixels[j][i] = new Vec3D();
+                for (int k = 0; k < aa; k++) {
+                    for (int l = 0; l < aa; l++) {
+                        double x = (2 * (i + (double) l / aa + 1 / aa * 0.5) / width - 1) * imageAspectRatio * scale;
+                        double y = (1 - 2 * (j + (double) k / aa + 1 / aa * 0.5) / height) * scale;
+                        Vec3D direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1));
+                        pixels[j][i] = pixels[j][i].add(castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0).multiply(factor));
+                    }
+                }
+            }
+            double a = (j + 1) / (double) height * 100;
+            if (a >= b) {
+                System.out.format("%.1f%%%n", a);
+                b = 10 * c++;
             }
         }
         return pixels;
@@ -40,7 +54,8 @@ public class Scene {
         trace(ray, isect);
         if (isect.hitObject != null) {
             Vec3D hitPoint = ray.origin.add(ray.direction.multiply(isect.tNear));
-            Vec3D hitNormal = isect.hitObject.getSurfaceProperties(hitPoint);
+            SurfaceProperties props = isect.hitObject.getSurfaceProperties(hitPoint);
+            Vec3D hitNormal = props.hitNormal;
             Vec3D hitColor = new Vec3D();
             switch (isect.hitObject.materialType) {
                 case PHONG:
@@ -53,16 +68,22 @@ public class Scene {
                         shadowIsect.tNear = illumination.distance;
                         trace(shadowRay, shadowIsect);
                         boolean visible = shadowIsect.hitObject == null;
+                        Vec3D col;
+                        if (isect.hitObject.texture != null) {
+                            col = isect.hitObject.texture.getPattern(props.hitTextureCoordinates);
+                        } else {
+                            col = isect.hitObject.albedo;
+                        }
                         if (visible) {
                             diffuse = diffuse.add(illumination.lightIntensity.multiply(
                                     Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1))))
-                                    .multiply(isect.hitObject.albedo));
+                                    .multiply(col));
                             Vec3D r = reflect(illumination.lightDirection, hitNormal);
                             specular = specular.add(illumination.lightIntensity.multiply(
                                     Math.pow(Math.max(0, r.dotProduct(ray.direction.multiply(-1))), isect.hitObject.n)));
                         }
                     }
-                    hitColor = diffuse.multiply(isect.hitObject.kd).add(specular.multiply(isect.hitObject.ks));
+                    hitColor = diffuse.multiply(isect.hitObject.kd).add(new Vec3D(0, 0.5, 1).multiply(hitPoint.getZ() * 0)).add(specular.multiply(isect.hitObject.ks));
                     break;
                 case REFLECTIVE:
                     boolean outside = ray.direction.dotProduct(hitNormal) < 0;
@@ -92,6 +113,9 @@ public class Scene {
             if (hitColor.getX() > 1) hitColor.setX(1);
             if (hitColor.getY() > 1) hitColor.setY(1);
             if (hitColor.getZ() > 1) hitColor.setZ(1);
+            if (hitColor.getX() < 0) hitColor.setX(0);
+            if (hitColor.getY() < 0) hitColor.setY(0);
+            if (hitColor.getZ() < 0) hitColor.setZ(0);
             return hitColor;
         } else return backgroundColor;
     }

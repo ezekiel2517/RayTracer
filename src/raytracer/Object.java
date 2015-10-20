@@ -8,9 +8,10 @@ public abstract class Object {
     protected Matrix44D objectToWorld, worldToObject;
     protected Vec3D albedo;
     protected MaterialType materialType;
-    protected double kd = 0.8, ks = 0.2, n = 10;
-    protected double ior = 10;
+    protected double kd = 0.7, ks = 0.3, n = 10;
+    protected double ior = 5;
+    protected Texture texture;
 
     public abstract Double intersect(Ray ray);
-    public abstract Vec3D getSurfaceProperties(Vec3D hitPoint);
+    public abstract SurfaceProperties getSurfaceProperties(Vec3D hitPoint);
 }

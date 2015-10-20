@@ -1,6 +1,7 @@
 package raytracer;
 
 import math.Matrix44D;
+import math.Vec2D;
 import math.Vec3D;
 
 public class Plane extends Object {
@@ -28,7 +29,17 @@ public class Plane extends Object {
     }
 
     @Override
-    public Vec3D getSurfaceProperties(Vec3D hitPoint) {
-        return normal.multiply(-1);
+    public SurfaceProperties getSurfaceProperties(Vec3D hitPoint) {
+        Vec3D hitNormal = normal.multiply(-1);
+        Vec2D tex = new Vec2D();
+        //tex.x = hitPoint.getX();
+        //tex.y = hitPoint.getZ();
+        Vec3D v = worldToObject.multiplyPoint(hitPoint);
+        tex.x = v.getX();
+        tex.y = v.getZ();
+        SurfaceProperties surfaceProperties = new SurfaceProperties();
+        surfaceProperties.hitNormal = hitNormal;
+        surfaceProperties.hitTextureCoordinates = tex;
+        return surfaceProperties;
     }
 }
