@@ -5,7 +5,7 @@ import math.Vec3D;
 
 import java.io.IOException;
 
-public class Scene {
+public abstract  class Scene {
     public Object[] objects;
     public Light[] lights;
     public Camera camera;
@@ -21,7 +21,8 @@ public class Scene {
         this.camera = camera;
     }
 
-    public Vec3D[][] render(int width, int height) {
+    public abstract Vec3D[][] render(int width, int height);
+    /*public Vec3D[][] render(int width, int height) {
         Vec3D[][] pixels = new Vec3D[height][width];
         double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
         double imageAspectRatio = width / (double) height;
@@ -53,9 +54,9 @@ public class Scene {
             }
         }
         return pixels;
-    }
+    }*/
 
-    private Vec3D castRay(Ray ray, int depth) {
+    protected Vec3D castRay(Ray ray, int depth) {
         if (depth > maxDepth) return backgroundColor;
         Intersection isect = new Intersection();
         trace(ray, isect);

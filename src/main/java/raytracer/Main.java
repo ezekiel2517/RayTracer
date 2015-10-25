@@ -71,10 +71,10 @@ class MyPanel extends JPanel {
         //objects[0].kd = 1;
         //objects[0].ks = 0;
 
-        Scene scene = new Scene(objects, lights, camera);
+        Scene scene = new ScalaScene(objects, lights, camera);
 
         Vec3D[][] pix = null;
-        for (int i = 0; i < 25; i++) {
+        for (int i = 0; i < 2500; i++) {
             // Render scene and measure time
             long start = System.nanoTime();
 
