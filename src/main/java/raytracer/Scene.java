@@ -3,6 +3,8 @@ package raytracer;
 import math.Utils;
 import math.Vec3D;
 
+import java.io.IOException;
+
 public class Scene {
     public Object[] objects;
     public Light[] lights;
@@ -41,7 +43,12 @@ public class Scene {
             }
             double a = (j + 1) / (double) height * 100;
             if (a >= b) {
-                System.out.format("%.1f%%%n", a);
+                //System.out.format("%.1f%%%n", a);
+                try {
+                    Main.print(a + "%");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 b = 10 * c++;
             }
         }

@@ -5,8 +5,20 @@ import math.Vec3D;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 public class Main {
+    private static final ExecutorService pool = Executors.newFixedThreadPool(10);
+
+    public static Future<String> print(final String text) throws IOException {
+        return pool.submit(() -> {
+            System.out.println(text);
+            return null;
+        });
+    }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
@@ -61,19 +73,28 @@ class MyPanel extends JPanel {
 
         Scene scene = new Scene(objects, lights, camera);
 
-        // Render scene and measure time
-        long start = System.nanoTime();
+        Vec3D[][] pix = null;
+        for (int i = 0; i < 25; i++) {
+            // Render scene and measure time
+            long start = System.nanoTime();
 
-        Vec3D[][] pix = scene.render(width, height);
+            pix = scene.render(width, height);
 
-        long stop = System.nanoTime();
+            long stop = System.nanoTime();
 
-        double time = stop - start;
-        int min = (int) (time / 60 / 1e9);
-        int sec = (int) (time / 1e9 - min * 60);
-        int mil = (int) Math.round(time / 1e6 - min * 60 * 1000 - sec * 1000);
+            double time = stop - start;
+            int min = (int) (time / 60 / 1e9);
+            int sec = (int) (time / 1e9 - min * 60);
+            int mil = (int) Math.round(time / 1e6 - min * 60 * 1000 - sec * 1000);
 
-        System.out.format("%d min %d sec %d mil%n%.3f fps", min, sec, mil, 1 / (time / 1e9));
+            //System.out.format("%d min %d sec %d mil%n%.3f fps", min, sec, mil, 1 / (time / 1e9));
+            try {
+                Main.print(min + " m " + sec + " s " + mil + " ms");
+                Main.print(1 / (time / 1e9) + " fps");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         // Convert colors
         pixels = new Color[height][width];
