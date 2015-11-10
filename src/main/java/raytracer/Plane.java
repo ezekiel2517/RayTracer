@@ -9,8 +9,7 @@ public class Plane extends Object {
     public Vec3D normal;
 
     public Plane(Matrix44D objectToWorld, Vec3D albedo, MaterialType materialType) {
-        this.objectToWorld = objectToWorld;
-        worldToObject = objectToWorld.inverse();
+        super(objectToWorld);
         this.albedo = albedo;
         point = objectToWorld.multiplyPoint(new Vec3D());
         normal = objectToWorld.multiplyDirection(new Vec3D(0, -1, 0));
@@ -31,7 +30,7 @@ public class Plane extends Object {
     @Override
     public SurfaceProperties getSurfaceProperties(Vec3D hitPoint) {
         Vec3D hitNormal = normal.multiply(-1);
-        Vec2D tex = new Vec2D();
+        Vec2D tex = new Vec2D(0,0);
         //tex.x = hitPoint.getX();
         //tex.y = hitPoint.getZ();
         Vec3D v = worldToObject.multiplyPoint(hitPoint);

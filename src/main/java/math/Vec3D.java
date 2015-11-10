@@ -13,6 +13,12 @@ public class Vec3D {
         this.z = z;
     }
 
+    public Vec3D(Vec3D v) {
+        x = v.x;
+        y = v.y;
+        z = v.z;
+    }
+
     public double getX() {
         return x;
     }
@@ -71,5 +77,10 @@ public class Vec3D {
         y *= factor;
         z *= factor;
         return this;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + x + ", " + y + ", " + z + ")";
     }
 }

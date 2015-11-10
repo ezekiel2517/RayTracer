@@ -21,7 +21,7 @@ public abstract  class Scene {
         this.camera = camera;
     }
 
-    public abstract Vec3D[][] render(int width, int height);
+    public abstract Vec3D[][] render(int width, int height, boolean realTimeMode);
     /*public Vec3D[][] render(int width, int height) {
         Vec3D[][] pixels = new Vec3D[height][width];
         double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
@@ -128,7 +128,7 @@ public abstract  class Scene {
         } else return backgroundColor;
     }
 
-    private void trace(Ray ray, Intersection isect) {
+    protected void trace(Ray ray, Intersection isect) {
         for (Object object : objects) {
             Double tNear = object.intersect(ray);
             if (tNear != null && tNear < isect.tNear) {
