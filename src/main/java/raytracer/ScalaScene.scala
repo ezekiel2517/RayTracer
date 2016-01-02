@@ -1,5 +1,8 @@
 package raytracer
 
+import java.io.IOException
+import java.text.DecimalFormat
+
 import math.Vec3D
 import scala.collection.par._
 import Scheduler.Implicits.global
@@ -11,8 +14,8 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
     val scale = Math.tan(Math.toRadians(camera.fov * 0.5))
     val imageAspectRatio: Double = width.toDouble / height.toDouble
     val origin = camera.cameraToWorld.multiplyPoint(new Vec3D())
-    (0 until height).par.foreach { j =>
-      (0 until width).par.foreach { i =>
+    (0 until height).foreach { j =>
+      (0 until width).foreach { i =>
         val x = (2 * (i + 0.5) / width - 1) * imageAspectRatio * scale
         val y = (1 - 2 * (j + 0.5) / height) * scale
         val direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1))
@@ -29,12 +32,8 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
       val hitPoint: Vec3D = ray.origin.add(ray.direction.multiply(isect.tNear))
       val props: SurfaceProperties = isect.hitObject.getSurfaceProperties(hitPoint)
       val hitColor =
-      if (isect.hitObject.texture != null) {
-        isect.hitObject.texture.getPattern(props.hitTextureCoordinates)
-      }
-      else {
-        isect.hitObject.albedo
-      }
+        if (isect.hitObject.texture != null) isect.hitObject.texture.getColor(props.hitTextureCoordinates)
+        else isect.hitObject.albedo
 
       if (hitColor.getX > 1) hitColor.setX(1)
       if (hitColor.getY > 1) hitColor.setY(1)
@@ -49,12 +48,22 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
 
   override def render(width: Int, height: Int, realTimeMode: Boolean): Array[Array[Vec3D]] = {
     if (realTimeMode) return renderQuickly(width, height)
+    stats = new Stats()
+    stats.setnPixels(width * height)
+    stats.setnObjects(objects.length)
+    stats.setnLights(lights.length)
+    stats.setnPrimaryRays(width * height * aa * aa)
+    stats.setnTris(nTris)
+
+    val f = new DecimalFormat()
+    f.setMaximumFractionDigits(1)
+
     val pixels = Array.ofDim[Vec3D](height, width)
     val scale = Math.tan(Math.toRadians(camera.fov * 0.5))
     val imageAspectRatio: Double = width.toDouble / height.toDouble
     val origin = camera.cameraToWorld.multiplyPoint(new Vec3D())
-    val b = 1
-    val c = 1
+    var b = 1
+    var c = 1
     val factor = 1.0 / (aa * aa)
     (0 until height).foreach { j =>
       (0 until width).foreach { i =>
@@ -68,7 +77,16 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
           }
         }
       }
+      val a = (j + 1.0) / height * 100
+/*      if (a >= b) {
+        //System.out.format("%.1f%%%n", a);
+
+        Panel.print(f.format(a) + "%")
+        b = 10 * c
+        c += 1
+      }*/
     }
+    //stats.printStats()
     pixels
     /*Vec3D[][] pixels = new Vec3D[height][width];
         double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
@@ -93,7 +111,7 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
             if (a >= b) {
                 //System.out.format("%.1f%%%n", a);
                 try {
-                    Main.print(a + "%");
+                    Panel.print(a + "%");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

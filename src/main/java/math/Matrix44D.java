@@ -43,10 +43,12 @@ public class Matrix44D {
         return res;
     }
 
+    @Deprecated
     public Matrix44D translate(double x, double y, double z) {
         return this.multiply(new Matrix44D(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1));
     }
 
+    @Deprecated
     public Matrix44D rotate(double x, double y, double z) {
         x = Math.toRadians(x);
         y = Math.toRadians(y);
@@ -55,6 +57,37 @@ public class Matrix44D {
                 .multiply(new Matrix44D(1, 0, 0, 0, 0, Math.cos(x), Math.sin(x), 0, 0, -Math.sin(x), Math.cos(x), 0, 0, 0, 0, 1))
                 .multiply(new Matrix44D(Math.cos(y), 0, -Math.sin(y), 0, 0, 1, 0, 0, Math.sin(y), 0, Math.cos(y), 0, 0, 0, 0, 1))
                 .multiply(new Matrix44D(Math.cos(z), Math.sin(z), 0, 0, -Math.sin(z), Math.cos(z), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+    }
+
+    public Matrix44D translated(Vec3D v) {
+        Matrix44D m = new Matrix44D(this);
+        m.c[3][0] += v.getX();
+        m.c[3][1] += v.getY();
+        m.c[3][2] += v.getZ();
+        return m;
+    }
+
+    public Matrix44D rotatedX(double degrees) {
+        double a = Math.toRadians(degrees);
+        return multiply(new Matrix44D(1, 0, 0, 0, 0, Math.cos(a), Math.sin(a), 0, 0, -Math.sin(a), Math.cos(a), 0, 0, 0, 0, 1));
+    }
+
+    public Matrix44D rotatedY(double degrees) {
+        double a = Math.toRadians(degrees);
+        return multiply(new Matrix44D(Math.cos(a), 0, -Math.sin(a), 0, 0, 1, 0, 0, Math.sin(a), 0, Math.cos(a), 0, 0, 0, 0, 1));
+    }
+
+    public Matrix44D rotatedZ(double degrees) {
+        double a = Math.toRadians(degrees);
+        return multiply(new Matrix44D(Math.cos(a), Math.sin(a), 0, 0, -Math.sin(a), Math.cos(a), 0, 0, 0, 0, 1, 0, 0, 0, 0, 1));
+    }
+
+    public Matrix44D scaled(Vec3D v) {
+        Matrix44D m = new Matrix44D(this);
+        m.c[0][0] *= v.getX();
+        m.c[1][1] *= v.getY();
+        m.c[2][2] *= v.getZ();
+        return m;
     }
 
     public Matrix44D transpose() {

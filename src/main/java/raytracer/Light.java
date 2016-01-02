@@ -8,5 +8,11 @@ public abstract class Light {
     protected double intensity;
     protected Matrix44D lightToWorld;
 
+    public Light(Matrix44D lightToWorld, Vec3D color, double intensity) {
+        this.lightToWorld = lightToWorld;
+        this.color = color;
+        this.intensity = intensity;
+    }
+
     public abstract Illumination illuminate(Vec3D point);
 }

@@ -20,6 +20,10 @@ public class TriangleMesh extends Object {
     private double triangleU;
     private double triangleV;
 
+    public int getNTris() {
+        return nTris;
+    }
+
     public static TriangleMesh createCuboid(double xDim, double yDim, double zDim, Matrix44D o2w, boolean out) {
         int[] faceIndex = new int[] {4, 4, 4, 4, 4, 4};
         int[] vertsIndex = out ? new int[] {
@@ -45,9 +49,117 @@ public class TriangleMesh extends Object {
                 normals[i] = new Vec3D(verts[vertsIndex[i]]).normalize();
         }
         Vec2D[] st = new Vec2D[24];
-        for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < 24; i += 4) {
             st[i] = new Vec2D(0, 0);
+            st[i + 1] = new Vec2D(1, 0);
+            st[i + 2] = new Vec2D(1, 1);
+            st[i + 3] = new Vec2D(0, 1);
         }
+        return new TriangleMesh(o2w, faceIndex, vertsIndex, verts, normals, st);
+    }
+
+    public static TriangleMesh createPolySphere(double rad, int nDivs) {
+        int nVerts = (nDivs - 1) * nDivs + 2;
+        Vec3D[] p = new Vec3D[nVerts];
+        Vec3D[] n = new Vec3D[(6 + (nDivs - 1) * 4) * nDivs];
+        Vec2D[] st = new Vec2D[(6 + (nDivs - 1) * 4) * nDivs];
+
+        double u = -Math.PI * 0.5;
+        double v = -Math.PI;
+        double du = Math.PI / nDivs;
+        double dv = 2 * Math.PI / nDivs;
+
+        Vec2D[] tex = new Vec2D[nVerts];
+
+        p[0] = new Vec3D(0, -rad, 0);
+        n[0] = new Vec3D(0, -rad, 0);
+        tex[0] = new Vec2D(0,0);
+        int k = 1;
+        for (int i = 0; i < nDivs - 1; i++) {
+            u += du;
+            v = -Math.PI;
+            for (int j = 0; j < nDivs; j++) {
+                double x = rad * Math.cos(u) * Math.cos(v);
+                double y = rad * Math.sin(u);
+                double z = rad * Math.cos(u) * Math.sin(v) ;
+                p[k] = new Vec3D(x, y, z);
+                n[k] = new Vec3D(x, y, z);
+                tex[k] = new Vec2D(0, 0);
+                tex[k].x = u / Math.PI + 0.5;
+                tex[k].y = v * 0.5 / Math.PI + 0.5;
+                v += dv;
+                k++;
+            }
+        }
+        p[k] = new Vec3D(0, rad, 0);
+        n[k] = new Vec3D(0, rad, 0);
+        tex[k] = new Vec2D(0,0);
+
+        int nPolys = nDivs * nDivs;
+        int[] faceIndex = new int[nPolys];
+        int[] vertsIndex = new int[(6 + (nDivs - 1) * 4) * nDivs];
+
+// create the connectivity lists
+        int vid = 1, numV = 0, l = 0;
+        k = 0;
+        for (int i = 0; i < nDivs; i++) {
+            for (int j = 0; j < nDivs; j++) {
+                if (i == 0) {
+                    faceIndex[k++] = 3;
+                    vertsIndex[l] = 0;
+                    vertsIndex[l + 1] = j + vid;
+                    vertsIndex[l + 2] = (j == (nDivs - 1)) ? vid : j + vid + 1;
+                    n[l] = new Vec3D(p[vertsIndex[l]]);
+                    n[l+1] = new Vec3D(p[vertsIndex[l+1]]);
+                    n[l+2] = new Vec3D(p[vertsIndex[l+2]]);
+                    st[l] = tex[vertsIndex[l]];
+                    st[l+1] = tex[vertsIndex[l + 1]];
+                    st[l+2] = tex[vertsIndex[l + 2]];
+                    l += 3;
+                }
+                else if (i == (nDivs - 1)) {
+                    faceIndex[k++] = 3;
+                    vertsIndex[l] = j + vid + 1 - nDivs;
+                    vertsIndex[l + 1] = vid + 1;
+                    vertsIndex[l + 2] = (j == (nDivs - 1)) ? vid + 1 - nDivs : j + vid + 2 - nDivs;
+                    n[l] = new Vec3D(p[vertsIndex[l]]);
+                    n[l+1] = new Vec3D(p[vertsIndex[l+1]]);
+                    n[l+2] = new Vec3D(p[vertsIndex[l+2]]);
+                    st[l] = tex[vertsIndex[l]];
+                    st[l+1] = tex[vertsIndex[l + 1]];
+                    st[l+2] = tex[vertsIndex[l + 2]];
+                    l += 3;
+                }
+                else {
+                    faceIndex[k++] = 4;
+                    vertsIndex[l] = j + vid + 1 - nDivs;
+                    vertsIndex[l + 1] = j + vid + 1;
+                    vertsIndex[l + 2] = (j == (nDivs - 1)) ? vid + 1 : j + vid + 2;
+                    vertsIndex[l + 3] = (j == (nDivs - 1)) ? vid + 1 - nDivs : j + vid + 2 - nDivs;
+                    n[l] = new Vec3D(p[vertsIndex[l]]);
+                    n[l+1] = new Vec3D(p[vertsIndex[l+1]]);
+                    n[l+2] = new Vec3D(p[vertsIndex[l+2]]);
+                    n[l+3] = new Vec3D(p[vertsIndex[l+3]]);
+                    st[l] = tex[vertsIndex[l]];
+                    st[l+1] = tex[vertsIndex[l + 1]];
+                    st[l+2] = tex[vertsIndex[l + 2]];
+                    st[l+3] = tex[vertsIndex[l + 3]];
+                    l += 4;
+                }
+                numV++;
+            }
+            vid = numV;
+        }
+
+        return new TriangleMesh(new Matrix44D(), faceIndex, vertsIndex, p, n, st);
+    }
+
+    public static TriangleMesh createPlane(Matrix44D o2w) {
+        int[] faceIndex = new int[] {4};
+        int[] vertsIndex = new int[] {0, 1, 2, 3};
+        Vec3D[] verts = new Vec3D[] {new Vec3D(-1, 0, 1), new Vec3D(1, 0, 1), new Vec3D(1, 0, -1), new Vec3D(-1, 0, -1)};
+        Vec3D[] normals = new Vec3D[] {new Vec3D(0, 1, 0), new Vec3D(0, 1, 0), new Vec3D(0, 1, 0), new Vec3D(0, 1, 0)};
+        Vec2D[] st = new Vec2D[] {new Vec2D(0, 0), new Vec2D(1, 0), new Vec2D(1, 1), new Vec2D(0, 1)};
         return new TriangleMesh(o2w, faceIndex, vertsIndex, verts, normals, st);
     }
 

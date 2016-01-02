@@ -7,9 +7,7 @@ public class DistantLight extends Light {
     private Vec3D direction;
 
     public DistantLight(Matrix44D lightToWorld, Vec3D color, double intensity) {
-        this.lightToWorld = lightToWorld;
-        this.color = color;
-        this.intensity = intensity;
+        super(lightToWorld, color, intensity);
         direction = lightToWorld.multiplyDirection(new Vec3D(0, 0, -1)).normalize();
     }
 

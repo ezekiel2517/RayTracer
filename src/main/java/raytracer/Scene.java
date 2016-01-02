@@ -3,22 +3,31 @@ package raytracer;
 import math.Utils;
 import math.Vec3D;
 
-import java.io.IOException;
+import java.util.Random;
 
 public abstract  class Scene {
     public Object[] objects;
     public Light[] lights;
     public Camera camera;
     public Vec3D backgroundColor = new Vec3D(0.03, 0.07, 0.16);
-    public double ambientLight = 0.0;
-    public double bias = 1e-9;
+    public double ambientLight = 0.05;
+    public Vec3D fogColor = new Vec3D(0.5, 0.5, 0.5);
+    public double fogDist = 32;
+    public double bias = 1e-4;
     public int maxDepth = 10;
     public int aa = 1;
+    protected Stats stats;
+    protected int nTris;
 
     public Scene(Object[] objects, Light[] lights, Camera camera) {
         this.objects = objects;
         this.lights = lights;
         this.camera = camera;
+        for (Object obj : objects) {
+            if (obj instanceof TriangleMesh) {
+                nTris += ((TriangleMesh) obj).getNTris();
+            }
+        }
     }
 
     public abstract Vec3D[][] render(int width, int height, boolean realTimeMode);
@@ -46,7 +55,7 @@ public abstract  class Scene {
             if (a >= b) {
                 //System.out.format("%.1f%%%n", a);
                 try {
-                    Main.print(a + "%");
+                    Panel.print(a + "%");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -71,14 +80,15 @@ public abstract  class Scene {
                     for (Light light : lights) {
                         Illumination illumination = light.illuminate(hitPoint);
                         Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)),
-                                illumination.lightDirection.multiply(-1), Ray.RayType.PRIMARY_RAY);
+                                illumination.lightDirection.multiply(-1), Ray.RayType.SHADOW_RAY);
+                        stats.addShadowRay();
                         Intersection shadowIsect = new Intersection();
                         shadowIsect.tNear = illumination.distance;
                         trace(shadowRay, shadowIsect);
                         boolean visible = shadowIsect.hitObject == null;
                         Vec3D col;
                         if (isect.hitObject.texture != null) {
-                            col = isect.hitObject.texture.getPattern(props.hitTextureCoordinates);
+                            col = isect.hitObject.texture.getColor(props.hitTextureCoordinates);
                         } else {
                             col = isect.hitObject.albedo;
                         }
@@ -91,14 +101,33 @@ public abstract  class Scene {
                                     Math.pow(Math.max(0, r.dotProduct(ray.direction.multiply(-1))), isect.hitObject.n)));
                         }
                     }
-                    hitColor = diffuse.multiply(isect.hitObject.kd).add(new Vec3D(0, 0.5, 1).multiply(hitPoint.getZ() * 0)).add(specular.multiply(isect.hitObject.ks));
+                    hitColor = diffuse.multiply(isect.hitObject.kd).add(specular.multiply(isect.hitObject.ks));
+
+                    // ambient light
+                    Vec3D col;
+                    if (isect.hitObject.texture != null) {
+                        col = isect.hitObject.texture.getColor(props.hitTextureCoordinates);
+                    } else {
+                        col = isect.hitObject.albedo;
+                    }
+                    hitColor = hitColor.add(col.multiply(ambientLight));
+
+                    // fog
+                    double z = -camera.cameraToWorld.inverse().multiplyPoint(hitPoint).getZ();
+                    if (z >= fogDist) {
+                        hitColor = fogColor;
+                    } else {
+                        double factor = z / fogDist;
+                        hitColor = hitColor.multiply(1 - factor).add(fogColor.multiply(factor));
+                    }
                     break;
                 case REFLECTIVE:
                     boolean outside = ray.direction.dotProduct(hitNormal) < 0;
                     Vec3D bias = hitNormal.multiply(this.bias);
                     Vec3D r = reflect(ray.direction, hitNormal).normalize();
                     Vec3D orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
-                    hitColor = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1).multiply(0.75);
+                    hitColor = castRay(new Ray(orig, r, Ray.RayType.OTHER), depth + 1).multiply(0.75);
+                    stats.addReflectionRay();
                     break;
                 case REFLECTIVE_AND_REFRACTIVE:
                     Vec3D refractionColor = new Vec3D();
@@ -110,14 +139,16 @@ public abstract  class Scene {
                         Vec3D refractionDirection = refract(ray.direction, hitNormal, isect.hitObject.ior).normalize();
                         Vec3D refractionRayOrig = outside ? hitPoint.subtract(bias) : hitPoint.add(bias);
                         refractionColor = castRay(new Ray(refractionRayOrig, refractionDirection, Ray.RayType.PRIMARY_RAY), depth + 1);
+                        stats.addTransmissionRay();
                     }
                     r = reflect(ray.direction, hitNormal).normalize();
                     orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
                     reflectionColor = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1);
+                    stats.addReflectionRay();
                     hitColor = hitColor.add(reflectionColor.multiply(kr).add(refractionColor.multiply(1 - kr)));
                     break;
             }
-            //hitColor = hitColor.add(isect.hitObject.albedo.multiply(ambientLight));
+
             if (hitColor.getX() > 1) hitColor.setX(1);
             if (hitColor.getY() > 1) hitColor.setY(1);
             if (hitColor.getZ() > 1) hitColor.setZ(1);
