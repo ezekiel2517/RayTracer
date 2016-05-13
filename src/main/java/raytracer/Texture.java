@@ -1,5 +1,6 @@
 package raytracer;
 
+//import com.google.gson.annotations.Expose;
 import math.Utils;
 import math.Vec2D;
 import math.Vec3D;
@@ -10,9 +11,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-public abstract class Texture {
+public class Texture {
+    //@Expose
     public double angle;
+    //@Expose
     public Vec2D scale;
+    //@Expose
+    public String type;
+
+    public Texture(){
+
+    }
 
     public Texture(double angleInDegrees, Vec2D scale) {
         setAngle(angleInDegrees);
@@ -28,5 +37,7 @@ public abstract class Texture {
         texCoords.y = texCoords.y * Math.cos(angle) + texCoords.x * Math.sin(angle);
     }
 
-    public abstract Vec3D getColor(Vec2D texCoords);
+    public Vec3D getColor(Vec2D texCoords){
+        return null;
+    }
 }

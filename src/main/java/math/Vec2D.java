@@ -1,6 +1,9 @@
 package math;
 
+//import com.google.gson.annotations.Expose;
+
 public class Vec2D {
+    //@Expose
     public double x, y;
 
     public Vec2D() {}

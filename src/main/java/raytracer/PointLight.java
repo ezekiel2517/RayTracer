@@ -1,14 +1,17 @@
 package raytracer;
 
+//import com.google.gson.annotations.Expose;
 import math.Matrix44D;
 import math.Vec3D;
 
 public class PointLight extends Light {
+    //@Expose
     private Vec3D position;
 
     public PointLight(Matrix44D lightToWorld, Vec3D color, double intensity) {
         super(lightToWorld, color, intensity);
         position = lightToWorld.multiplyPoint(new Vec3D());
+        type = "pointLight";
     }
 
     @Override

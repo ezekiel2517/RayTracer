@@ -1,6 +1,9 @@
 package math;
 
+//import com.google.gson.annotations.Expose;
+
 public class Matrix44D {
+    //@Expose
     private double[][] c;
 
     public Matrix44D(double c00, double c01, double c02, double c03,

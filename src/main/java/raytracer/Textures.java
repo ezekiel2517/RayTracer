@@ -1,5 +1,6 @@
 package raytracer;
 
+//import com.google.gson.annotations.Expose;
 import math.Utils;
 import math.Vec2D;
 import math.Vec3D;
@@ -7,7 +8,28 @@ import math.Vec3D;
 /**
  * Created by piotr on 15.11.15.
  */
+//public class Checkerboard extends Texture {
+//    //@Expose
+//    Vec3D col1, col2;
+//
+//    public Checkerboard(double angleInDegrees, Vec2D scale, Vec3D col1, Vec3D col2) {
+//        super(angleInDegrees, scale);
+//        this.col1 = col1;
+//        this.col2 = col2;
+//        type = "checkerboard";
+//    }
+//
+//    @Override
+//    public Vec3D getColor(Vec2D texCoords) {
+//        rotateTexCoords(texCoords);
+//        double pattern = (Utils.modulo(texCoords.x * scale.x) < 0.5) ^ (Utils.modulo(texCoords.y * scale.y) < 0.5) ? 1 : 0;
+//        return pattern == 1 ? col1 : col2;
+//    }
+//}
+
+
 public class Textures {
+
     public static Texture checkerboard(double angleInDegrees, Vec2D scale, Vec3D col1, Vec3D col2) {
         return new Texture(angleInDegrees, scale) {
 
@@ -55,3 +77,4 @@ public class Textures {
         };
     }
 }
+

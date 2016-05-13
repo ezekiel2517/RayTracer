@@ -3,7 +3,7 @@ package raytracer
 import java.io.IOException
 import java.text.DecimalFormat
 
-import math.Vec3D
+import math.{Vec2D, Vec3D}
 import scala.collection.par._
 import Scheduler.Implicits.global
 
@@ -46,6 +46,72 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
     else backgroundColor
   }
 
+  override def render(width: Int, height: Int, row: Int): Array[Vec3D] = {
+    val pixels = Array.ofDim[Vec3D](width)
+    val scale = Math.tan(Math.toRadians(camera.fov * 0.5))
+    val imageAspectRatio: Double = width.toDouble / height.toDouble
+    val origin = camera.cameraToWorld.multiplyPoint(new Vec3D())
+    val factor = 1.0 / (aa * aa)
+    (0 until width).foreach { i =>
+
+
+
+      pixels(i) = new Vec3D()
+      (0 until aa).foreach { k =>
+        (0 until aa).foreach { l =>
+          val x = (2 * (i + l.toDouble / aa + 1 / aa * 0.5) / width - 1) * imageAspectRatio * scale
+          val y = (1 - 2 * (row + k.toDouble / aa + 1 / aa * 0.5) / height) * scale
+          val direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1))
+          val ray = new Ray(origin, direction, Ray.RayType.PRIMARY_RAY)
+          val color = castRay(ray, 0, new Vec2D())
+          val atm = new Atmosphere()
+          var atmosphereColor = new Vec3D()
+          var transmittance = new Vec3D()
+          val isect = new Intersection()
+          if (renderAtmosphere) {
+
+            trace(ray, isect)
+            var t = Double.PositiveInfinity
+            if (isect.hitObject == null) {
+              //t = isect.tNear
+              transmittance = atm.computeIncidentLight(ray, atmosphereColor, t)
+              pixels(i) = pixels(i).add(atmosphereColor.multiply(factor))
+            } else
+              pixels(i) = pixels(i).add(color.multiply(factor))
+          } else {
+            pixels(i) = pixels(i).add(color.multiply(factor))
+          }
+
+
+//          if (atmosphereColor.getX < 1.413)
+//            atmosphereColor.setX(Math.pow(atmosphereColor.getX * 0.38317, 1 / 2.2))
+//          else
+//            atmosphereColor.setX(1 - Math.exp(-atmosphereColor.getX))
+//          if (atmosphereColor.getY < 1.413)
+//            atmosphereColor.setY(Math.pow(atmosphereColor.getY * 0.38317, 1 / 2.2))
+//          else
+//            atmosphereColor.setY(1 - Math.exp(-atmosphereColor.getY))
+//          if (atmosphereColor.getZ < 1.413)
+//            atmosphereColor.setZ(Math.pow(atmosphereColor.getZ * 0.38317, 1 / 2.2))
+//          else
+//            atmosphereColor.setZ(1 - Math.exp(-atmosphereColor.getZ))
+
+          //atmosphereColor = atmosphereColor.multiply(2000)
+          //if (isect.tNear > 100)
+          //System.out.println(isect.tNear)
+          //pixels(i) = pixels(i).add(atmosphereColor.multiply(factor))
+          //pixels(i) = pixels(i).add(color.multiply(transmittance.multiply(-1).add(new Vec3D(1, 1, 1))).add(atmosphereColor).multiply(factor))
+          //pixels(i) = pixels(i).add(color.multiply(factor))
+          //pixels(i) = pixels(i).add(color.multiply(transmittance).add(atmosphereColor).multiply(factor))
+        }
+      }
+      pixels(i).setX(Math.max(0, Math.min(1, pixels(i).getX)))
+      pixels(i).setY(Math.max(0, Math.min(1, pixels(i).getY)))
+      pixels(i).setZ(Math.max(0, Math.min(1, pixels(i).getZ)))
+    }
+    pixels
+  }
+
   override def render(width: Int, height: Int, realTimeMode: Boolean): Array[Array[Vec3D]] = {
     if (realTimeMode) return renderQuickly(width, height)
     stats = new Stats()
@@ -73,20 +139,20 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
             val x = (2 * (i +  l.toDouble / aa +1 / aa * 0.5) / width - 1) * imageAspectRatio * scale
             val y = (1 - 2 * (j + k.toDouble / aa +1 / aa * 0.5) / height) * scale
             val direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1))
-            pixels(j)(i) = pixels(j)(i).add(castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0).multiply(factor));
+            pixels(j)(i) = pixels(j)(i).add(castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0, new Vec2D()).multiply(factor));
           }
         }
       }
       val a = (j + 1.0) / height * 100
-/*      if (a >= b) {
+      if (a >= b) {
         //System.out.format("%.1f%%%n", a);
 
         Panel.print(f.format(a) + "%")
         b = 10 * c
         c += 1
-      }*/
+      }
     }
-    //stats.printStats()
+    stats.printStats()
     pixels
     /*Vec3D[][] pixels = new Vec3D[height][width];
         double scale = Math.tan(Math.toRadians(camera.fov * 0.5));

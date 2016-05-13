@@ -1,10 +1,13 @@
 package raytracer;
 
+//import com.google.gson.annotations.Expose;
 import math.*;
 
 public class Sphere extends Object {
-    private double radius, radius2;
-    private Vec3D center;
+    //@Expose
+    public double radius;
+    public double radius2;
+    public Vec3D center;
 
     public Sphere(Matrix44D objectToWorld, double radius, Vec3D albedo, MaterialType materialType) {
         super(objectToWorld);
@@ -13,6 +16,7 @@ public class Sphere extends Object {
         radius2 = radius * radius;
         this.albedo = albedo;
         this.materialType = materialType;
+        type = "sphere";
     }
 
     @Override

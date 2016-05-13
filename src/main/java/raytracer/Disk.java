@@ -1,38 +1,39 @@
 package raytracer;
 
-//import com.google.gson.annotations.Expose;
 import math.Matrix44D;
 import math.Vec2D;
 import math.Vec3D;
 
-public class Plane extends Object {
-    //@Expose
-    public Vec3D point;
-    //@Expose
+/**
+ * Created by piotr on 10.05.16.
+ */
+public class Disk extends Object {
+    public Vec3D center;
     public Vec3D normal;
+    public double radius;
+    public double radius2;
 
-    public Plane(Matrix44D objectToWorld, Vec3D albedo, MaterialType materialType) {
+    public Disk(Matrix44D objectToWorld, Vec3D albedo, double radius) {
         super(objectToWorld);
         this.albedo = albedo;
-        point = objectToWorld.multiplyPoint(new Vec3D());
+        center = objectToWorld.multiplyPoint(new Vec3D());
         normal = objectToWorld.multiplyDirection(new Vec3D(0, 1, 0));
-        this.materialType = materialType;
-        type = "plane";
-    }
-
-    public static Double intersect(Ray ray, Vec3D point, Vec3D normal) {
-        double denom = normal.dotProduct(ray.direction);
-        if (Math.abs(denom) > Options.kEpsilon) {
-            Vec3D pointOrigin = point.subtract(ray.origin);
-            double t = pointOrigin.dotProduct(normal) / denom;
-            return t >= 0 ? t : null;
-        }
-        return null;
+        this.materialType = MaterialType.PHONG;
+        type = "disk";
+        this.radius = radius;
+        radius2 = radius * radius;
     }
 
     @Override
     public Double intersect(Ray ray) {
-        return intersect(ray, point, normal);
+        Double t = Plane.intersect(ray, center, normal);
+        if (t != null) {
+            Vec3D p = ray.origin.add(ray.direction.multiply(t));
+            Vec3D v = p.subtract(center);
+            double d2 = v.dotProduct(v);
+            return d2 <= radius2 ? t : null;
+        }
+        return null;
     }
 
     @Override

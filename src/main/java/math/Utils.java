@@ -12,7 +12,7 @@ public class Utils {
     }
 
     public static double clamp(double lo, double hi, double v) {
-        return Math.max(lo, Math.max(hi, v));
+        return Math.max(lo, Math.min(hi, v));
     }
 
     public static double modulo(double f) {

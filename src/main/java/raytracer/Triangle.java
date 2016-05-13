@@ -1,5 +1,6 @@
 package raytracer;
 
+//import com.google.gson.annotations.Expose;
 import math.Matrix44D;
 import math.Vec3D;
 
@@ -7,11 +8,14 @@ import math.Vec3D;
  * Created by piotr on 05.11.15.
  */
 public class Triangle extends Object {
-    public Vec3D v0, v1, v2, normal;
+    //@Expose
+    public Vec3D v0, v1, v2;
+    public Vec3D normal;
     public double u, v;
 
     public Triangle(Matrix44D objectToWorld) {
         super(objectToWorld);
+        type = "triangle";
     }
 
     @Override

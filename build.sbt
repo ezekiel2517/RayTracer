@@ -10,6 +10,7 @@ libraryDependencies ++= Seq(
   "junit"             % "junit"           % "4.12"  % "test",
   "com.novocode"      % "junit-interface" % "0.11"  % "test",
   "com.github.scala-blitz" %% "scala-blitz" % "1.1"
+  //"com.google.code.gson" % "gson" % "2.5"
 )
 
 fork := true
