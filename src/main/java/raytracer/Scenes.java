@@ -11,7 +11,7 @@ public class Scenes {
 
     static double earthRadius = 6360e3;
 
-    public static Scene stones(Camera camera) {
+    public static ScalaScene stones(Camera camera) {
         Matrix44D sphereo2w = new Matrix44D();
         sphereo2w.set(3, 2, -5);
         sphereo2w.set(3, 1, -0.5 + earthRadius);
@@ -21,7 +21,7 @@ public class Scenes {
         sphere.texture = Textures.gradient(0, new Vec2D(10, 10));
         Matrix44D plane02w = new Matrix44D();
         plane02w.set(3, 1, -1 + earthRadius);
-        Plane plane = new Plane(plane02w, new Vec3D(1, 1, 1), Object.MaterialType.PHONG);
+        Plane plane = new Plane(plane02w, new Vec3D(0.25, 1, 0.25), Object.MaterialType.PHONG);
 
         Matrix44D box2w = new Matrix44D();
         box2w = box2w.rotatedY(30);
@@ -50,28 +50,30 @@ public class Scenes {
         box32w.set(3, 1, 3 + earthRadius);
         box32w.set(3, 2, -7);
         TriangleMesh box3 = TriangleMesh.createCuboid(1, 6, 1, box32w, true);
-        box3.materialType = Object.MaterialType.REFLECTIVE_AND_REFRACTIVE;
-        box3.albedo = new Vec3D(0, 1, 1);
+        box3.materialType = Object.MaterialType.PHONG;
+        box3.albedo = new Vec3D(1, 0.5, 0);
         box3.ior = 1.5;
         box3.smoothShading = false;
 
         Matrix44D lighto2w = new Matrix44D();
-        lighto2w = lighto2w.rotatedX(-40);
-        DistantLight light = new DistantLight(lighto2w, new Vec3D(1, 1, 1), 1);
+        lighto2w = lighto2w.rotatedX(-20).rotatedY(-60);
+        DistantLight light = new DistantLight(lighto2w, new Vec3D(1, 1, 1), Math.PI);
 
         PointLight pointLight = new PointLight(new Matrix44D().translated(new Vec3D(0, 1, -8)), new Vec3D(1, 1, 0), 50);
 
         camera.translate(new Vec3D(0, -1, 0), 0.5 - earthRadius);
+        camera.translate(new Vec3D(0, 0, -1), 2);
         camera.rotateX(10);
         camera.rotateY(-5);
         camera.fov = 90;
         return new ScalaScene(new Object[] {sphere, plane, box, box2, box3}, new Light[] {light}, camera);
     }
 
-    public static Scene reflections(Camera camera) {
+    public static ScalaScene reflections(Camera camera) {
         Matrix44D sphere1o2w = new Matrix44D();
+        sphere1o2w.set(3, 0, 1.6);
         sphere1o2w.set(3, 1, -2);
-        sphere1o2w.set(3, 2, -0.5);
+        sphere1o2w.set(3, 2, 0);
         Sphere sphere1 = new Sphere(sphere1o2w, 1, new Vec3D(1, 0, 0), Object.MaterialType.PHONG);
         Matrix44D sphere2o2w = new Matrix44D();
         sphere2o2w.set(3, 0, 2.5);
@@ -86,7 +88,7 @@ public class Scenes {
         r2w = r2w.rotatedY(90);
         TriangleMesh room = TriangleMesh.createCuboid(16, 6, 16, r2w, false);
         room.materialType = Object.MaterialType.PHONG;
-        //room.texture = Textures.checkerboard(0, new Vec2D(4, 2), new Vec3D(), new Vec3D(1, 1, 1));
+        room.texture = Textures.checkerboard(0, new Vec2D(4, 2), new Vec3D(), new Vec3D(1, 1, 1));
         room.albedo = new Vec3D(0.75, 0.25, 0.25);
         room.smoothShading = false;
         room.kd = 1;
@@ -119,27 +121,27 @@ public class Scenes {
         l2w1.set(3, 0, -4);
         l2w1.set(3, 1, 0);
         l2w1.set(3, 2, -4);
-        PointLight light1 = new PointLight(l2w1, new Vec3D(0, 0, 1), 400);
+        PointLight light1 = new PointLight(l2w1, new Vec3D(0, 0, 1), 200);
 
         Matrix44D l2w3 = new Matrix44D();
         l2w3.set(3, 0, -4);
         l2w3.set(3, 1, 0);
         l2w3.set(3, 2, 4);
-        PointLight light3 = new PointLight(l2w3, new Vec3D(0, 0, 1), 400);
+        PointLight light3 = new PointLight(l2w3, new Vec3D(0, 0, 1), 200);
 
         Matrix44D l2w2 = new Matrix44D();
-        l2w2.set(3, 0, 4);
-        l2w2.set(3, 1, -1.5);
-        l2w2.set(3, 2, 4);
-        PointLight light2 = new PointLight(l2w2, new Vec3D(1, 1, 1), 1000);
+        l2w2.set(3, 0, 0);
+        l2w2.set(3, 1, -2);
+        l2w2.set(3, 2, 0);
+        PointLight light2 = new PointLight(l2w2, new Vec3D(1, 1, 1), 25);
 
         camera.translate(new Vec3D(0, -1, 0), 1);
         camera.rotate(-10, 10);
         camera.translate(new Vec3D(0, 0, 1), 7.5);
-        return new ScalaScene(new Object[] {sphere1, sphere2, room, box, box2}, new Light[] {light1, light2, light3}, camera);
+        return new ScalaScene(new Object[] {sphere1, sphere2, room, box, box2}, new Light[] {light2}, camera);
     }
 
-    public static Scene globalIllum(Camera camera) {
+    public static ScalaScene globalIllum(Camera camera) {
         Matrix44D sphere1o2w = new Matrix44D();
         sphere1o2w.set(3, 1, -2);
         sphere1o2w.set(3, 2, -0.5);
@@ -198,10 +200,10 @@ public class Scenes {
         PointLight light3 = new PointLight(l2w3, new Vec3D(0, 0, 1), 200);
 
         Matrix44D l2w2 = new Matrix44D();
-        l2w2.set(3, 0, 4);
-        l2w2.set(3, 1, -1.5);
-        l2w2.set(3, 2, 4);
-        PointLight light2 = new PointLight(l2w2, new Vec3D(1, 1, 1), 500);
+        l2w2.set(3, 0, 2);
+        l2w2.set(3, 1, 0);
+        l2w2.set(3, 2, 2);
+        PointLight light2 = new PointLight(l2w2, new Vec3D(1, 1, 1), 100);
 
         Matrix44D plane2w = new Matrix44D();
         plane2w = plane2w.scaled(new Vec3D(4, 0, 4));
@@ -221,7 +223,7 @@ public class Scenes {
         return new ScalaScene(new Object[] {sphere1, room, sphere2, box, box2}, new Light[] {light2}, camera);
     }
 
-    public static Scene mirrorFloor(Camera camera) {
+    public static ScalaScene mirrorFloor(Camera camera) {
         Plane bottomPlane = new Plane(new Matrix44D(), new Vec3D(), Object.MaterialType.PHONG);
         bottomPlane.texture = Textures.checkerboard(20, new Vec2D(1, 1), new Vec3D(), new Vec3D(1, 1, 1));
         Plane topPlane = new Plane(new Matrix44D().translated(new Vec3D(0, 0.01, 0)), new Vec3D(), Object.MaterialType.REFLECTIVE_AND_REFRACTIVE);
@@ -235,10 +237,10 @@ public class Scenes {
         return new ScalaScene(new Object[] {bottomPlane, topPlane, sphere}, new Light[] {distLight1}, camera);
     }
 
-    public static Scene refractions(Camera camera) {
+    public static ScalaScene refractions(Camera camera) {
         Plane plane = new Plane(new Matrix44D().translated(new Vec3D(0, 0, 0)), new Vec3D(1, 1, 1), Object.MaterialType.PHONG);
         plane.texture = Textures.checkerboard(0, new Vec2D(1, 1), new Vec3D(0, 0.5, 0.25), new Vec3D(1, 1, 0));
-        Sphere sphere = new Sphere(new Matrix44D().translated(new Vec3D(0, 0 + 1, 0)), 1, new Vec3D(1, 0.77, 0.34), Object.MaterialType.REFLECTIVE_AND_REFRACTIVE);
+        Sphere sphere = new Sphere(new Matrix44D().translated(new Vec3D(0, 0 + 1, 0)), 1, new Vec3D(1, 0.77, 0.34), Object.MaterialType.REFLECTIVE);
         Sphere sphere2 = new Sphere(new Matrix44D().translated(new Vec3D(-1.1, 0 + 1, -6)), 1, new Vec3D(1, 0, 0), Object.MaterialType.PHONG);
         sphere2.texture = Textures.checkerboard(0, new Vec2D(10, 10), new Vec3D(0.7, 0.1, 0.9), new Vec3D(0.2, 0.7, 0.1));
         Sphere sphere3 = new Sphere(new Matrix44D().translated(new Vec3D(1.4, 0 + 1, -5)), 1, new Vec3D(1, 0, 0), Object.MaterialType.PHONG);
@@ -252,7 +254,7 @@ public class Scenes {
         return new ScalaScene(new Object[] {plane, sphere}, new Light[] {distLight1}, camera);
     }
 
-    public static Scene polySphere(Camera camera) {
+    public static ScalaScene polySphere(Camera camera) {
         TriangleMesh sphere = TriangleMesh.createPolySphere(1, 32);
         sphere.materialType = Object.MaterialType.PHONG;
         sphere.albedo = new Vec3D(0, 1, 0);
@@ -277,12 +279,12 @@ public class Scenes {
         DistantLight distLight2 = new DistantLight(new Matrix44D().rotatedX(180).rotatedY(0), new Vec3D(1, 1, 1), 1);
         camera.translate(new Vec3D(0.5, 0.5, 1), 4);
         camera.rotate(-20, 17.5);
-        Scene scene = new ScalaScene(new Object[] {sphere}, new Light[] {distLight1}, camera);
+        ScalaScene scene = new ScalaScene(new Object[] {sphere}, new Light[] {distLight1}, camera);
         scene.useEnvLight = false;
         return scene;
     }
 
-    public static Scene furnanceTest(Camera camera) {
+    public static ScalaScene furnanceTest(Camera camera) {
         Sphere sphere = new Sphere(new Matrix44D(), 1, new Vec3D(0.18, 0.18, 0.18), Object.MaterialType.PHONG);
         sphere.kd = 1;
         sphere.ks = 0;
@@ -290,7 +292,7 @@ public class Scenes {
         return new ScalaScene(new Object[] {sphere}, new Light[] {}, camera);
     }
 
-    public static Scene conductors(Camera camera) {
+    public static ScalaScene conductors(Camera camera) {
         Sphere sphere = new Sphere(new Matrix44D().translated(new Vec3D(0, 0.5, 0)), 1, new Vec3D(1, 1, 0), Object.MaterialType.PHONG);
         sphere.kd = 1;
         sphere.ks = 0;
@@ -310,7 +312,7 @@ public class Scenes {
         return new ScalaScene(new Object[] {sphere, floor, sphere1}, new Light[] {light}, camera);
     }
 
-    public static Scene atmosphere(Camera camera) {
+    public static ScalaScene atmosphere(Camera camera) {
         Sphere sphere = new Sphere(new Matrix44D(), earthRadius, new Vec3D(0, 1, 0.25), Object.MaterialType.PHONG);
         Sphere sphere1 = new Sphere(new Matrix44D().translated(new Vec3D(2, earthRadius, -10)), 8, new Vec3D(1, 0, 0), Object.MaterialType.PHONG);
         sphere.kd = 1;
@@ -325,7 +327,7 @@ public class Scenes {
         return scene;
     }
 
-    public static Scene triangleTest(Camera camera) {
+    public static ScalaScene triangleTest(Camera camera) {
         Matrix44D triangleToWorld = new Matrix44D();
         int[] faceIndex = new int[] {3};
         int[] vertsIndex = new int[] {0, 1, 2};
@@ -352,7 +354,7 @@ public class Scenes {
         return scene;
     }
 
-    public static Scene cylinderTest(Camera camera) {
+    public static ScalaScene cylinderTest(Camera camera) {
         TriangleMesh cylinder = TriangleMesh.createCylinder(2, 0.5, 3, 4, 2);
         cylinder.materialType = Object.MaterialType.PHONG;
         cylinder.albedo = new Vec3D(0, 1, 0);
@@ -375,7 +377,7 @@ public class Scenes {
         return scene;
     }
 
-    public static Scene idealCylinderTest(Camera camera) {
+    public static ScalaScene idealCylinderTest(Camera camera) {
         Matrix44D cylinderToWorld = new Matrix44D().rotatedZ(90).translated(new Vec3D(1, 0, 0));
         Cylinder cylinder = new Cylinder(cylinderToWorld, 1, new Vec3D(0, 1, 0), 2);
 
@@ -390,7 +392,7 @@ public class Scenes {
         return scene;
     }
 
-    public static Scene idealConeTest(Camera camera) {
+    public static ScalaScene idealConeTest(Camera camera) {
         Matrix44D coneToWorld = new Matrix44D().rotatedZ(90).translated(new Vec3D(-2, 0, 0));
         Cone cone = new Cone(coneToWorld, 0.5, 1, 0.5, new Vec3D(0, 1, 0));
 
@@ -405,7 +407,7 @@ public class Scenes {
         return scene;
     }
 
-    public static Scene diskTest(Camera camera) {
+    public static ScalaScene diskTest(Camera camera) {
         Matrix44D diskToWorld = new Matrix44D();//.rotatedZ(90).translated(new Vec3D(-2, 0, 0));
         Disk disk = new Disk(diskToWorld, new Vec3D(0, 1, 0), 1);
 

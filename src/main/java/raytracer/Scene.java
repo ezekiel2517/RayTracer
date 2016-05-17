@@ -29,21 +29,22 @@ public class Scene {
     //@Expose
     public double bias = 1e-4;
     //@Expose
-    public int maxDepth = 10;
+    public int maxDepth = 4;
     //@Expose
-    public int aa = 1;
+    public int aa = 4;
     protected Stats stats = new Stats();
     protected int nTris;
     protected
     Random generator = new Random();
     //@Expose
     protected boolean useGI = false;
-    int N = 128;
+    int N = 4;
     public boolean renderAtmosphere = false;
     boolean renderFog = false;
     public boolean useEnvLight = false;
     Vec3D envLightColor = new Vec3D(1, 1, 1);
     double envLightIntensity = 1;
+    public int samplesCounter;
 
     public Scene(Object[] objects, Light[] lights, Camera camera) {
         this.objects = objects;
@@ -70,6 +71,133 @@ public class Scene {
 //        Gson gson = new Gson();
 //        return null;
 //    }
+
+    public void readWriteScene() {
+        //Scene.writeScene(scene, "/home/piotr/scene.json");
+
+//        GsonBuilder gb = new GsonBuilder();
+//
+//        gb.registerTypeAdapter(Object.class, (JsonSerializer<Object>) (src, type, jsonSerializationContext) -> {
+//            Gson gson = gb.excludeFieldsWithoutExposeAnnotation().create();
+//            String objectType = src.type;
+//            if(objectType.equals("sphere")){
+//                return gson.toJsonTree(src, Sphere.class);
+//            }
+//            if(objectType.equals("plane")){
+//                return gson.toJsonTree(src, Plane.class);
+//            }
+//            if(objectType.equals("triangle")){
+//                return gson.toJsonTree(src, Triangle.class);
+//            }
+//            if(objectType.equals("triangleMesh")){
+//                return gson.toJsonTree(src, TriangleMesh.class);
+//            }
+//            return null;
+//        });
+//
+//        gb.registerTypeAdapter(Texture.class, (JsonSerializer<Texture>) (src, type, jsonSerializationContext) -> {
+//            Gson gson = gb.excludeFieldsWithoutExposeAnnotation().create();
+//            String objectType = src.type;
+//            if(objectType.equals("checkerboard")){
+//                return gson.toJsonTree(src, Checkerboard.class);
+//            }
+//            return null;
+//        });
+//
+//        gb.registerTypeAdapter(Light.class, (JsonSerializer<Light>) (src, type, jsonSerializationContext) -> {
+//            Gson gson = gb.excludeFieldsWithoutExposeAnnotation().create();
+//            String objectType = src.type;
+//            if(objectType.equals("distantLight")){
+//                return gson.toJsonTree(src, DistantLight.class);
+//            }
+//            if(objectType.equals("pointLight")){
+//                return gson.toJsonTree(src, PointLight.class);
+//            }
+//            return null;
+//        });
+//
+//        gb.registerTypeAdapter(Object.class, (JsonDeserializer<Object>) (jsonElement, type, jsonDeserializationContext) -> {
+//            Gson gson = new Gson();
+//            HashMap data = gson.fromJson(jsonElement, HashMap.class);
+//            java.lang.Object objectType = data.get("type");
+//            if(objectType.equals("sphere")){
+//                //return gson.fromJson(jsonElement, Sphere.class);
+//                //return new Sphere((Matrix44D)data.get("objectToWorld"), (double)data.get("radius"), (Vec3D)data.get("albedo"), (Object.MaterialType) data.get("materialType"));
+//                Sphere sphere = gson.fromJson(jsonElement, Sphere.class);
+//                sphere.radius2 = sphere.radius * sphere.radius;
+//                sphere.center = sphere.objectToWorld.multiplyPoint(new Vec3D());
+//                sphere.worldToObject = sphere.objectToWorld.inverse();
+//                return sphere;
+//            }
+//            if(objectType.equals("plane")){
+//                return gson.fromJson(jsonElement, Plane.class);
+//            }
+//            if(objectType.equals("triangle")){
+//                return gson.fromJson(jsonElement, Triangle.class);
+//            }
+//            if(objectType.equals("triangleMesh")){
+//                return gson.fromJson(jsonElement, TriangleMesh.class);
+//            }
+//            return null;
+//        });
+//
+//        gb.registerTypeAdapter(Light.class, (JsonDeserializer<Light>) (jsonElement, type, jsonDeserializationContext) -> {
+//            Gson gson = new Gson();
+//            HashMap data = gson.fromJson(jsonElement, HashMap.class);
+//            java.lang.Object objectType = data.get("type");
+//            if(objectType.equals("distantLight")){
+//                return gson.fromJson(jsonElement, DistantLight.class);
+//            }
+//            if(objectType.equals("pointLight")){
+//                return gson.fromJson(jsonElement, PointLight.class);
+//            }
+//            return null;
+//        });
+//
+//        gb.registerTypeAdapter(Texture.class, (JsonDeserializer<Texture>) (jsonElement, type, jsonDeserializationContext) -> {
+//            Gson gson = new Gson();
+//            HashMap data = gson.fromJson(jsonElement, HashMap.class);
+//            java.lang.Object objectType = data.get("type");
+//            if(objectType.equals("checkerboard")){
+//                return gson.fromJson(jsonElement, Checkerboard.class);
+//            }
+//            return null;
+//        });
+//
+//        Sphere sphere = new Sphere(new Matrix44D(), 1, new Vec3D(0.18, 0.18, 0.18), Object.MaterialType.PHONG);
+//        //sphere.kd = 1;
+//        //sphere.ks = 0;
+//        sphere.texture = new Checkerboard(0, new Vec2D(1, 1), new Vec3D(1, 0, 1), new Vec3D(0, 1, 1));
+//        Camera cam = new Camera();
+//        cam.translate(new Vec3D(0, 0, 1), 4);
+//        Scene scene1 = new Scene(new Object[] {sphere}, new Light[] {}, cam);
+//        String json = gb.setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create().toJson(scene1);
+//        try (FileWriter writer = new FileWriter("/home/piotr/test.json")) {
+//            writer.write(json);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        Scene scene2 = null;
+//        try (BufferedReader br = new BufferedReader(new FileReader("/home/piotr/test.json"))) {
+//            scene2 = gb.create().fromJson(br, Scene.class);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//
+//        assert scene2 != null;
+//        this.scene = new ScalaScene(scene2.objects, scene2.lights, scene2.camera);
+//        camera = scene2.camera;
+        //System.out.println(camera.cameraToWorld);
+        //System.out.println(((Sphere) this.scene.objects[0]).albedo);
+
+//        String js = gb.setPrettyPrinting().create().toJson(new Scene(this.scene.objects, this.scene.lights, this.scene.camera));
+//        try (FileWriter writer = new FileWriter("/home/piotr/test.json")) {
+//            writer.write(js);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+    }
 
     protected void createCoordinateSystem(Vec3D n, Vec3D nt, Vec3D nb) {
         if (Math.abs(n.getX()) > Math.abs(n.getY())) {
@@ -100,12 +228,10 @@ public class Scene {
         return new Vec3D(x, r1, z);
     }
 
-    public Vec3D[] render(int width, int height, int row) {
-        return null;
+    public void render(int width, int height, int row, Vec3D[] pixels) {
     }
 
-    public Vec3D[][] render(int width, int height, boolean realTimeMode){
-        return null;
+    public void render(int width, int height, Vec3D[] pixels){
     }
     /*public Vec3D[][] render(int width, int height) {
         Vec3D[][] pixels = new Vec3D[height][width];
@@ -196,7 +322,9 @@ public class Scene {
                         createCoordinateSystem(hitNormal, Nt, Nb);
                         double pdf = 1 / (2 * Math.PI);
 
-                        for (int n = 0; n < N; ++n) {
+                        int nsam = Options.renderProgressively ? 1 : N;
+
+                        for (int n = 0; n < nsam; ++n) {
                             double r1 = generator.nextDouble();
                             double r2 = generator.nextDouble();
                             Vec3D sample = uniformSampleHemisphere(r1, r2);
@@ -212,7 +340,7 @@ public class Scene {
                         }
 
                         // divide by N
-                        indirectLighting = indirectLighting.multiply(1 / (double) N);
+                        indirectLighting = indirectLighting.multiply(1 / (double) nsam);
                     }
 
 

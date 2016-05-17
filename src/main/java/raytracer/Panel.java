@@ -8,14 +8,16 @@ import math.Vec3D;
 import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
 import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
+import java.awt.image.BufferedImage;
 import java.io.*;
+import java.lang.*;
+import java.lang.Object;
 import java.lang.reflect.Type;
 import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -23,7 +25,7 @@ import java.util.concurrent.Future;
 public class Panel extends JPanel {
 
     private class Listener extends MouseInputAdapter implements KeyListener {
-        private double movUnit = 0.1;
+        private double movUnit = 0.25;
         private double keyRotUnit = 2;
         private double mouseRotUnit = 0.1;
 
@@ -32,6 +34,9 @@ public class Panel extends JPanel {
 
         @Override
         public void keyPressed(KeyEvent e) {
+            if (worker != null && !worker.isDone()) {
+                return;
+            }
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_W:
                     camera.translate(new Vec3D(0, 0, -1), movUnit); break;
@@ -51,20 +56,36 @@ public class Panel extends JPanel {
                     camera.rotateY(-keyRotUnit); break;
                 case KeyEvent.VK_R:
                     realTimeMode = !realTimeMode;
-                    if (!realTimeMode) {
-                        renderIncrementally();
-                        return;
-                    }
                     break;
                 case KeyEvent.VK_C:
                     camera.reset();
+                    break;
                 case KeyEvent.VK_Z:
                     useAA = !useAA;
-                    if (useAA) scene.aa = 4;
+                    if (useAA) scene.aa = aa;
                     else scene.aa = 1;
                     break;
+                case KeyEvent.VK_X:
+                    scene.stats.printStats();
+                    break;
+                case KeyEvent.VK_I:
+                    Options.renderIncrementally = !Options.renderIncrementally;
+                    break;
+                case KeyEvent.VK_P:
+                    Options.renderProgressively = !Options.renderProgressively;
+                    break;
+                case KeyEvent.VK_V:
+                    if (continueProgRend) {
+                        continueProgRend = false;
+                    }
+                    break;
+                case KeyEvent.VK_G:
+                    scene.useGI = !scene.useGI;
+                    break;
             }
-            repaint();
+            update();
+            //render();
+            //repaint();
         }
 
         @Override
@@ -78,26 +99,85 @@ public class Panel extends JPanel {
 
         @Override
         public void mouseDragged(MouseEvent e) {
+            if (worker != null && !worker.isDone()) {
+                return;
+            }
             double rotX = (cursorY - e.getY()) * mouseRotUnit;
             double rotY = (cursorX - e.getX()) * mouseRotUnit;
             camera.rotate(rotX, rotY);
-            repaint();
+            update();
+            //repaint();
+            //render();
             cursorX = e.getX();
             cursorY = e.getY();
         }
     }
 
+    class Worker extends SwingWorker<BufferedImage, Void> {
+
+        @Override
+        protected BufferedImage doInBackground() throws Exception {
+            if (Options.renderProgressively && !realTimeMode && scene.useGI) {
+                return renderProgressively();
+            }
+            if (Options.renderIncrementally && !realTimeMode) {
+                return renderIncrementally();
+            }
+            return render();
+        }
+    }
+
     private static int width = 640, height = 480;
     private Camera camera = new Camera();
-    private Scene scene = Scenes.refractions(camera);
+    private ScalaScene scene = Scenes.globalIllum(camera);
     private int cursorX, cursorY;
     private boolean realTimeMode = true;
     private static final ExecutorService pool = Executors.newFixedThreadPool(10);
     private DecimalFormat f = new DecimalFormat();
     private boolean useAA = false;
-
-    Vec3D[][] pixels;
+    int aa;
+    boolean continueProgRend;
+    Vec3D[] pixels;
+    BufferedImage img;
+    Worker worker;
     int row;
+    int maxSamples = 1024;
+    Timer timer = new Timer(1, new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (worker.isDone()) {
+                timer.stop();
+                try {
+                    img = worker.get();
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                } catch (ExecutionException e1) {
+                    e1.printStackTrace();
+                }
+                paintImmediately(0, 0, width, height);
+                if (Options.renderProgressively && !realTimeMode && scene.useGI) {
+                    if (scene.samplesCounter == maxSamples - 1) {
+                        scene.samplesCounter = 0;
+                    } else {
+                        scene.samplesCounter++;
+                        update();
+                    }
+                    return;
+                }
+                if (Options.renderIncrementally && !realTimeMode) {
+                    if (row == height - 1) {
+                        row = 0;
+                    } else {
+                        row++;
+                        update();
+                    }
+                }
+            }
+        }
+    });
+
+
+    //int[] ints = new int[width * height];
 
     public Panel() {
         setPreferredSize(new Dimension(width, height));
@@ -106,151 +186,166 @@ public class Panel extends JPanel {
         addKeyListener(listener);
         addMouseListener(listener);
         addMouseMotionListener(listener);
-
-        //Scene.writeScene(scene, "/home/piotr/scene.json");
-
-//        GsonBuilder gb = new GsonBuilder();
-//
-//        gb.registerTypeAdapter(Object.class, (JsonSerializer<Object>) (src, type, jsonSerializationContext) -> {
-//            Gson gson = gb.excludeFieldsWithoutExposeAnnotation().create();
-//            String objectType = src.type;
-//            if(objectType.equals("sphere")){
-//                return gson.toJsonTree(src, Sphere.class);
-//            }
-//            if(objectType.equals("plane")){
-//                return gson.toJsonTree(src, Plane.class);
-//            }
-//            if(objectType.equals("triangle")){
-//                return gson.toJsonTree(src, Triangle.class);
-//            }
-//            if(objectType.equals("triangleMesh")){
-//                return gson.toJsonTree(src, TriangleMesh.class);
-//            }
-//            return null;
-//        });
-//
-//        gb.registerTypeAdapter(Texture.class, (JsonSerializer<Texture>) (src, type, jsonSerializationContext) -> {
-//            Gson gson = gb.excludeFieldsWithoutExposeAnnotation().create();
-//            String objectType = src.type;
-//            if(objectType.equals("checkerboard")){
-//                return gson.toJsonTree(src, Checkerboard.class);
-//            }
-//            return null;
-//        });
-//
-//        gb.registerTypeAdapter(Light.class, (JsonSerializer<Light>) (src, type, jsonSerializationContext) -> {
-//            Gson gson = gb.excludeFieldsWithoutExposeAnnotation().create();
-//            String objectType = src.type;
-//            if(objectType.equals("distantLight")){
-//                return gson.toJsonTree(src, DistantLight.class);
-//            }
-//            if(objectType.equals("pointLight")){
-//                return gson.toJsonTree(src, PointLight.class);
-//            }
-//            return null;
-//        });
-//
-//        gb.registerTypeAdapter(Object.class, (JsonDeserializer<Object>) (jsonElement, type, jsonDeserializationContext) -> {
-//            Gson gson = new Gson();
-//            HashMap data = gson.fromJson(jsonElement, HashMap.class);
-//            java.lang.Object objectType = data.get("type");
-//            if(objectType.equals("sphere")){
-//                //return gson.fromJson(jsonElement, Sphere.class);
-//                //return new Sphere((Matrix44D)data.get("objectToWorld"), (double)data.get("radius"), (Vec3D)data.get("albedo"), (Object.MaterialType) data.get("materialType"));
-//                Sphere sphere = gson.fromJson(jsonElement, Sphere.class);
-//                sphere.radius2 = sphere.radius * sphere.radius;
-//                sphere.center = sphere.objectToWorld.multiplyPoint(new Vec3D());
-//                sphere.worldToObject = sphere.objectToWorld.inverse();
-//                return sphere;
-//            }
-//            if(objectType.equals("plane")){
-//                return gson.fromJson(jsonElement, Plane.class);
-//            }
-//            if(objectType.equals("triangle")){
-//                return gson.fromJson(jsonElement, Triangle.class);
-//            }
-//            if(objectType.equals("triangleMesh")){
-//                return gson.fromJson(jsonElement, TriangleMesh.class);
-//            }
-//            return null;
-//        });
-//
-//        gb.registerTypeAdapter(Light.class, (JsonDeserializer<Light>) (jsonElement, type, jsonDeserializationContext) -> {
-//            Gson gson = new Gson();
-//            HashMap data = gson.fromJson(jsonElement, HashMap.class);
-//            java.lang.Object objectType = data.get("type");
-//            if(objectType.equals("distantLight")){
-//                return gson.fromJson(jsonElement, DistantLight.class);
-//            }
-//            if(objectType.equals("pointLight")){
-//                return gson.fromJson(jsonElement, PointLight.class);
-//            }
-//            return null;
-//        });
-//
-//        gb.registerTypeAdapter(Texture.class, (JsonDeserializer<Texture>) (jsonElement, type, jsonDeserializationContext) -> {
-//            Gson gson = new Gson();
-//            HashMap data = gson.fromJson(jsonElement, HashMap.class);
-//            java.lang.Object objectType = data.get("type");
-//            if(objectType.equals("checkerboard")){
-//                return gson.fromJson(jsonElement, Checkerboard.class);
-//            }
-//            return null;
-//        });
-//
-//        Sphere sphere = new Sphere(new Matrix44D(), 1, new Vec3D(0.18, 0.18, 0.18), Object.MaterialType.PHONG);
-//        //sphere.kd = 1;
-//        //sphere.ks = 0;
-//        sphere.texture = new Checkerboard(0, new Vec2D(1, 1), new Vec3D(1, 0, 1), new Vec3D(0, 1, 1));
-//        Camera cam = new Camera();
-//        cam.translate(new Vec3D(0, 0, 1), 4);
-//        Scene scene1 = new Scene(new Object[] {sphere}, new Light[] {}, cam);
-//        String json = gb.setPrettyPrinting().excludeFieldsWithoutExposeAnnotation().create().toJson(scene1);
-//        try (FileWriter writer = new FileWriter("/home/piotr/test.json")) {
-//            writer.write(json);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        Scene scene2 = null;
-//        try (BufferedReader br = new BufferedReader(new FileReader("/home/piotr/test.json"))) {
-//            scene2 = gb.create().fromJson(br, Scene.class);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//
-//        assert scene2 != null;
-//        this.scene = new ScalaScene(scene2.objects, scene2.lights, scene2.camera);
-//        camera = scene2.camera;
-        //System.out.println(camera.cameraToWorld);
-        //System.out.println(((Sphere) this.scene.objects[0]).albedo);
-
-//        String js = gb.setPrettyPrinting().create().toJson(new Scene(this.scene.objects, this.scene.lights, this.scene.camera));
-//        try (FileWriter writer = new FileWriter("/home/piotr/test.json")) {
-//            writer.write(js);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
+        pixels = new Vec3D[width * height];
+        aa = scene.aa;
+        if (!useAA) {
+            scene.aa = 1;
+        }
+        //render();
     }
 
-    public void printData(long time) {
-        int min = (int) (time / 1e9 / 60);
-        int sec = (int) (time / 1e9 - min * 60);
-        int mil = (int) Math.round(time / 1e6 - min * 60 * 1000 - sec * 1000);
-        double fps = 1 / (time / 1e9);
+    public void update() {
+        if (worker != null && !worker.isDone()) {
+            return;
+        }
+        worker = new Worker();
+        worker.execute();
+        timer.start();
+    }
+
+    private BufferedImage render() {
+        long start = System.nanoTime();
+
+        if (realTimeMode) {
+            scene.renderQuickly(width, height, pixels);
+        } else {
+            scene.render(width, height, pixels);
+        }
+
+        long stop = System.nanoTime();
+        long time1 = stop - start;
+
+        start = System.nanoTime();
+
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                int k = i * width + j;
+                img.setRGB(j, i, (int) (Math.round(pixels[k].getX() * 255) << 16 |
+                        Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255)));
+            }
+        }
+
+//        for (int i = 0; i < height; i++) {
+//            for (int j = 0; j < width; j++) {
+//                int k = i * width + j;
+//                ints[k] = (int) (Math.round(pixels[k].getX() * 255) << 16 |
+//                        Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255));
+//            }
+//        }
+//        img.setRGB(0, 0, width, height, ints, 0, width);
+
+        stop = System.nanoTime();
+        long time2 = stop - start;
+
+        start = System.nanoTime();
+
+        //paintImmediately(0, 0, width, height);
+        //repaint();
+
+        stop = System.nanoTime();
+        long time3 = stop - start;
+
+        printData(time1, time2, time3);
+        return img;
+    }
+
+    private BufferedImage renderProgressively() {
+        long start, stop, time1 = 0, time2 = 0, time3 = 0;
+
+        start = System.nanoTime();
+
+        scene.render(width, height, pixels);
+
+        stop = System.nanoTime();
+        time1 += stop - start;
+
+        start = System.nanoTime();
+
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
+                int k = i * width + j;
+                img.setRGB(j, i, (int) (Math.round(pixels[k].getX() * 255 / (scene.samplesCounter + 1)) << 16 |
+                        Math.round(pixels[k].getY() * 255 / (scene.samplesCounter + 1)) << 8 |
+                        Math.round(pixels[k].getZ() * 255 / (scene.samplesCounter + 1))));
+            }
+        }
+
+        stop = System.nanoTime();
+        time2 = stop - start;
+
+        start = System.nanoTime();
+
+        //paintImmediately(0, 0, width, height);
+        //repaint();
+
+        stop = System.nanoTime();
+        time3 = stop - start;
 
         try {
-            print(min + " m " + sec + " s " + mil + " ms\t" + f.format(fps) + " fps");
+            print(Integer.toString(scene.samplesCounter + 1));
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        //printData(time1, time2, time3);
+        return img;
     }
 
-    public void renderIncrementally() {
-        for (int i = 0; i < height; i++) {
-            pixels[i] = scene.render(width, height, i);
-            row = i;
-            paintImmediately(0, i, width, 1);
+    public BufferedImage renderIncrementally() {
+        long start, stop, time1 = 0, time2 = 0, time3 = 0;
+
+
+        start = System.nanoTime();
+
+        scene.render(width, height, row, pixels);
+
+        stop = System.nanoTime();
+        time1 += stop - start;
+
+        start = System.nanoTime();
+
+        //BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+        for (int j = 0; j < width; j++) {
+            int k = row * width + j;
+            img.setRGB(j, row, (int) (Math.round(pixels[k].getX() * 255) << 16 |
+                    Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255)));
+        }
+
+        stop = System.nanoTime();
+        time2 += stop - start;
+
+        start = System.nanoTime();
+
+        stop = System.nanoTime();
+        time3 += stop - start;
+
+        //printData(time1, time2, time3);
+        return img;
+    }
+
+    public void printData(long time1, long time2, long time3) {
+        int min1 = (int) (time1 / 1e9 / 60);
+        int sec1 = (int) (time1 / 1e9 - min1 * 60);
+        int mil1 = (int) Math.round(time1 / 1e6 - min1 * 60 * 1000 - sec1 * 1000);
+        //double fps = 1 / (time / 1e9);
+        int min2 = (int) (time2 / 1e9 / 60);
+        int sec2 = (int) (time2 / 1e9 - min2 * 60);
+        int mil2 = (int) Math.round(time2 / 1e6 - min2 * 60 * 1000 - sec2 * 1000);
+
+        int min3 = (int) (time3 / 1e9 / 60);
+        int sec3 = (int) (time3 / 1e9 - min3 * 60);
+        int mil3 = (int) Math.round(time3 / 1e6 - min3 * 60 * 1000 - sec3 * 1000);
+
+        try {
+            print(min1 + " m " + sec1 + " s " + mil1 + " ms\t" + /*f.format(fps) + " fps"*/
+                    min2 + " m " + sec2 + " s " + mil2 + " ms\t" + min3 + " m " + sec3 + " s " + mil3 + " ms");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
@@ -258,23 +353,11 @@ public class Panel extends JPanel {
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
 
-        long start = System.nanoTime();
-
-        if (realTimeMode) pixels = scene.render(width, height, realTimeMode);
-
-        long stop = System.nanoTime();
-        long time = stop - start;
-        //printData(time);
-
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                g.setColor(new Color(
-                        (int) (pixels[i][j].getX() * 255),
-                        (int) (pixels[i][j].getY() * 255),
-                        (int) (pixels[i][j].getZ() * 255)));
-                g.drawLine(j, i, j, i);
-            }
+        if (img == null) {
+            return;
         }
+
+        g.drawImage(img, 0, 0, null);
 
         if (realTimeMode) {
             renderXYZ(g);
@@ -321,14 +404,16 @@ public class Panel extends JPanel {
 
     public static void createUI() {
         JFrame frame = new JFrame("Ray tracer");
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        frame.setLocation(screenSize.width / 2 - width / 2, screenSize.height / 2 - height / 2);
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         Panel panel = new Panel();
-        frame.add(panel);
+        frame.getContentPane().add(panel, BorderLayout.CENTER);
         frame.pack();
+        frame.setLocationRelativeTo(null);
         panel.requestFocusInWindow();
+        frame.setResizable(false);
+        //panel.render();
         frame.setVisible(true);
+        panel.update();
     }
 
     public static void main(String[] args) {

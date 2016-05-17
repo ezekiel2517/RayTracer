@@ -9,8 +9,14 @@ import Scheduler.Implicits.global
 
 class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) extends Scene(objects, lights, camera) {
 
-  def renderQuickly(width: Int, height: Int) = {
-    val pixels = Array.ofDim[Vec3D](height, width)
+  def renderQuickly(width: Int, height: Int, pixels: Array[Vec3D]) = {
+    stats = new Stats()
+    stats.setnPixels(width * height)
+    stats.setnObjects(objects.length)
+    stats.setnLights(lights.length)
+    stats.setnPrimaryRays(width * height * aa * aa)
+    stats.setnTris(nTris)
+    //val pixels = Array.ofDim[Vec3D](height, width)
     val scale = Math.tan(Math.toRadians(camera.fov * 0.5))
     val imageAspectRatio: Double = width.toDouble / height.toDouble
     val origin = camera.cameraToWorld.multiplyPoint(new Vec3D())
@@ -19,10 +25,10 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
         val x = (2 * (i + 0.5) / width - 1) * imageAspectRatio * scale
         val y = (1 - 2 * (j + 0.5) / height) * scale
         val direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1))
-        pixels(j)(i) = castRayQuickly(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY));
+        pixels(j * width + i) = castRayQuickly(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY));
       }
     }
-    pixels
+    //pixels
   }
 
   protected def castRayQuickly(ray: Ray): Vec3D = {
@@ -46,17 +52,20 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
     else backgroundColor
   }
 
-  override def render(width: Int, height: Int, row: Int): Array[Vec3D] = {
-    val pixels = Array.ofDim[Vec3D](width)
+  override def render(width: Int, height: Int, row: Int, pixels: Array[Vec3D] ) = {
+    stats = new Stats()
+    stats.setnPixels(width * height)
+    stats.setnObjects(objects.length)
+    stats.setnLights(lights.length)
+    stats.setnPrimaryRays(width * height * aa * aa)
+    stats.setnTris(nTris)
+    //val pixels = Array.ofDim[Vec3D](width)
     val scale = Math.tan(Math.toRadians(camera.fov * 0.5))
     val imageAspectRatio: Double = width.toDouble / height.toDouble
     val origin = camera.cameraToWorld.multiplyPoint(new Vec3D())
     val factor = 1.0 / (aa * aa)
     (0 until width).foreach { i =>
-
-
-
-      pixels(i) = new Vec3D()
+      pixels(row * width + i) = new Vec3D()
       (0 until aa).foreach { k =>
         (0 until aa).foreach { l =>
           val x = (2 * (i + l.toDouble / aa + 1 / aa * 0.5) / width - 1) * imageAspectRatio * scale
@@ -65,21 +74,20 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
           val ray = new Ray(origin, direction, Ray.RayType.PRIMARY_RAY)
           val color = castRay(ray, 0, new Vec2D())
           val atm = new Atmosphere()
-          var atmosphereColor = new Vec3D()
+          val atmosphereColor = new Vec3D()
           var transmittance = new Vec3D()
           val isect = new Intersection()
           if (renderAtmosphere) {
-
             trace(ray, isect)
-            var t = Double.PositiveInfinity
+            val t = Double.PositiveInfinity
             if (isect.hitObject == null) {
               //t = isect.tNear
               transmittance = atm.computeIncidentLight(ray, atmosphereColor, t)
-              pixels(i) = pixels(i).add(atmosphereColor.multiply(factor))
+              pixels(row * width + i) = pixels(row * width + i).add(atmosphereColor.multiply(factor))
             } else
-              pixels(i) = pixels(i).add(color.multiply(factor))
+              pixels(row * width + i) = pixels(row * width + i).add(color.multiply(factor))
           } else {
-            pixels(i) = pixels(i).add(color.multiply(factor))
+            pixels(row * width + i) = pixels(row * width + i).add(color.multiply(factor))
           }
 
 
@@ -105,15 +113,13 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
           //pixels(i) = pixels(i).add(color.multiply(transmittance).add(atmosphereColor).multiply(factor))
         }
       }
-      pixels(i).setX(Math.max(0, Math.min(1, pixels(i).getX)))
-      pixels(i).setY(Math.max(0, Math.min(1, pixels(i).getY)))
-      pixels(i).setZ(Math.max(0, Math.min(1, pixels(i).getZ)))
+      pixels(row * width + i).setX(Math.max(0, Math.min(1, pixels(row * width + i).getX)))
+      pixels(row * width + i).setY(Math.max(0, Math.min(1, pixels(row * width + i).getY)))
+      pixels(row * width + i).setZ(Math.max(0, Math.min(1, pixels(row * width + i).getZ)))
     }
-    pixels
   }
 
-  override def render(width: Int, height: Int, realTimeMode: Boolean): Array[Array[Vec3D]] = {
-    if (realTimeMode) return renderQuickly(width, height)
+  override def render(width: Int, height: Int, pixels: Array[Vec3D]) = {
     stats = new Stats()
     stats.setnPixels(width * height)
     stats.setnObjects(objects.length)
@@ -121,39 +127,41 @@ class ScalaScene(objects: Array[Object], lights: Array[Light], camera: Camera) e
     stats.setnPrimaryRays(width * height * aa * aa)
     stats.setnTris(nTris)
 
-    val f = new DecimalFormat()
-    f.setMaximumFractionDigits(1)
+//    val f = new DecimalFormat()
+//    f.setMaximumFractionDigits(1)
 
-    val pixels = Array.ofDim[Vec3D](height, width)
+    //val pixels = Array.ofDim[Vec3D](height, width)
     val scale = Math.tan(Math.toRadians(camera.fov * 0.5))
     val imageAspectRatio: Double = width.toDouble / height.toDouble
     val origin = camera.cameraToWorld.multiplyPoint(new Vec3D())
-    var b = 1
-    var c = 1
+//    var b = 1
+//    var c = 1
     val factor = 1.0 / (aa * aa)
     (0 until height).foreach { j =>
       (0 until width).foreach { i =>
-        pixels(j)(i) = new Vec3D()
+        if (!Options.renderProgressively || pixels(j * width + i) == null || samplesCounter == 0) {
+          pixels(j * width + i) = new Vec3D()
+        }
         (0 until aa).foreach { k =>
           (0 until aa).foreach { l =>
             val x = (2 * (i +  l.toDouble / aa +1 / aa * 0.5) / width - 1) * imageAspectRatio * scale
             val y = (1 - 2 * (j + k.toDouble / aa +1 / aa * 0.5) / height) * scale
             val direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1))
-            pixels(j)(i) = pixels(j)(i).add(castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0, new Vec2D()).multiply(factor));
+            pixels(j * width + i) = pixels(j * width + i).add(castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0, new Vec2D()).multiply(factor));
           }
         }
       }
-      val a = (j + 1.0) / height * 100
-      if (a >= b) {
-        //System.out.format("%.1f%%%n", a);
-
-        Panel.print(f.format(a) + "%")
-        b = 10 * c
-        c += 1
-      }
+//      val a = (j + 1.0) / height * 100
+//      if (a >= b) {
+//        //System.out.format("%.1f%%%n", a);
+//
+//        Panel.print(f.format(a) + "%")
+//        b = 10 * c
+//        c += 1
+//      }
     }
-    stats.printStats()
-    pixels
+//    stats.printStats()
+
     /*Vec3D[][] pixels = new Vec3D[height][width];
         double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
         double imageAspectRatio = width / (double) height;
