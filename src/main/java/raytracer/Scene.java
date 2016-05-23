@@ -6,9 +6,6 @@ import math.Utils;
 import math.Vec2D;
 import math.Vec3D;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Random;
 
 public class Scene {
@@ -29,22 +26,22 @@ public class Scene {
     //@Expose
     public double bias = 1e-4;
     //@Expose
-    public int maxDepth = 4;
+    public int maxDepth = 1;
     //@Expose
-    public int aa = 4;
+    public int aa = 2;
     protected Stats stats = new Stats();
     protected int nTris;
     protected
     Random generator = new Random();
     //@Expose
     protected boolean useGI = false;
-    int N = 4;
+    public int N = 8;
     public boolean renderAtmosphere = false;
     boolean renderFog = false;
     public boolean useEnvLight = false;
     Vec3D envLightColor = new Vec3D(1, 1, 1);
     double envLightIntensity = 1;
-    public int samplesCounter;
+    private RayTreesArray rayTreesArray;
 
     public Scene(Object[] objects, Light[] lights, Camera camera) {
         this.objects = objects;
@@ -54,6 +51,68 @@ public class Scene {
             if (obj instanceof TriangleMesh) {
                 nTris += ((TriangleMesh) obj).getNTris();
             }
+        }
+    }
+
+    public void createRayTreesArray(int width, int height, int raysPerPixelLength) {
+        rayTreesArray = new RayTreesArray(width, height, raysPerPixelLength, this);
+    }
+
+    public void resetRayTreesArray() {
+        rayTreesArray.reset();
+    }
+
+    public int getnSamples() {
+        return rayTreesArray.getnSamples();
+    }
+
+    public void incrnSamples() {
+        rayTreesArray.incrnSamples();
+    }
+
+    public void render(Vec3D[] pixels, boolean realTimeMode) {
+        for (int row = 0; row < Options.height; row++) {
+            render(pixels, row, realTimeMode);
+        }
+    }
+
+    public void render(Vec3D[] pixels, int row, boolean realTimeMode) {
+        double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
+        double aspectRatio = (double) Options.width / Options.height;
+        int raysPerPixL = realTimeMode ? 1 : aa;
+        double raysPerPixLFactor = 1.0 / (raysPerPixL * raysPerPixL);
+        for (int col = 0; col < Options.width; col++) {
+            int index = row * Options.width + col;
+
+            if (Options.renderProgressively && useGI && !realTimeMode && !rayTreesArray.isReset()) {
+                pixels[index] = rayTreesArray.update(col, row);
+                pixels[index].x = Math.min(pixels[index].x, 1);
+                pixels[index].y = Math.min(pixels[index].y, 1);
+                pixels[index].z = Math.min(pixels[index].z, 1);
+                continue;
+            }
+
+            Vec3D color = new Vec3D();
+            for (int r = 0; r < raysPerPixL; r++) {
+                for (int c = 0; c < raysPerPixL; c++) {
+                    double x = (2 * (col + (2.0 * c + 1) / (2 * raysPerPixL)) / Options.width - 1) * aspectRatio * scale;
+                    double y = (1 - 2 * (row + (2.0 * r + 1) / (2 * raysPerPixL)) / Options.height) * scale;
+                    Vec3D direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1));
+                    Ray ray = new Ray(camera.pos, direction, Ray.RayType.PRIMARY_RAY);
+                    if (Options.renderProgressively && useGI && !realTimeMode && rayTreesArray.isReset()) {
+                        rayTreesArray.addNode(col, row, c, r);
+                        color = color.add(castRay(ray, 0, new Vec2D(), rayTreesArray.getNode(col, row, c, r)));
+                    } else if (realTimeMode) {
+                        color = color.add(castRay(ray));
+                    } else {
+                        color = color.add(castRay(ray, 0, new Vec2D(), null));
+                    }
+                }
+            }
+            pixels[index] = color.multiply(raysPerPixLFactor);
+            pixels[index].x = Math.min(pixels[index].x, 1);
+            pixels[index].y = Math.min(pixels[index].y, 1);
+            pixels[index].z = Math.min(pixels[index].z, 1);
         }
     }
 
@@ -228,47 +287,30 @@ public class Scene {
         return new Vec3D(x, r1, z);
     }
 
-    public void render(int width, int height, int row, Vec3D[] pixels) {
-    }
+    public void render(int width, int height, int row, Vec3D[] pixels) {}
 
-    public void render(int width, int height, Vec3D[] pixels){
-    }
-    /*public Vec3D[][] render(int width, int height) {
-        Vec3D[][] pixels = new Vec3D[height][width];
-        double scale = Math.tan(Math.toRadians(camera.fov * 0.5));
-        double imageAspectRatio = width / (double) height;
-        Vec3D origin = camera.cameraToWorld.multiplyPoint(new Vec3D());
-        double b = 1;
-        double c = 1;
-        double factor = 1.0 / (aa * aa);
-        for (int j = 0; j < height; j++) {
-            for (int i = 0; i < width; i++) {
-                pixels[j][i] = new Vec3D();
-                for (int k = 0; k < aa; k++) {
-                    for (int l = 0; l < aa; l++) {
-                        double x = (2 * (i + (double) l / aa + 1 / aa * 0.5) / width - 1) * imageAspectRatio * scale;
-                        double y = (1 - 2 * (j + (double) k / aa + 1 / aa * 0.5) / height) * scale;
-                        Vec3D direction = camera.cameraToWorld.multiplyDirection(new Vec3D(x, y, -1));
-                        pixels[j][i] = pixels[j][i].add(castRay(new Ray(origin, direction, Ray.RayType.PRIMARY_RAY), 0).multiply(factor));
-                    }
-                }
-            }
-            double a = (j + 1) / (double) height * 100;
-            if (a >= b) {
-                //System.out.format("%.1f%%%n", a);
-                try {
-                    Panel.print(a + "%");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                b = 10 * c++;
-            }
+    public void render(int width, int height, Vec3D[] pixels){}
+
+    public Vec3D castRay(Ray ray) {
+        Intersection isect = new Intersection();
+        trace(ray, isect);
+        if (isect.hitObject == null) {
+            return backgroundColor;
         }
-        return pixels;
-    }*/
+        Vec3D hitPoint = ray.origin.add(ray.direction.multiply(isect.tNear));
+        SurfaceProperties props = isect.hitObject.getSurfaceProperties(hitPoint);
+        Vec3D color = isect.hitObject.texture != null ?
+                isect.hitObject.texture.getColor(props.hitTextureCoordinates) : isect.hitObject.albedo;
+//        color.x = Math.min(color.x, 1);
+//        color.y = Math.min(color.y, 1);
+//        color.z = Math.min(color.z, 1);
+        return color;
+    }
 
-    protected Vec3D castRay(Ray ray, int depth, Vec2D length) {
-        if (depth > maxDepth) return new Vec3D();
+    protected Vec3D castRay(Ray ray, int depth, Vec2D length, RayTreesArray.Node node) {
+        if (depth > maxDepth) {
+            return new Vec3D();
+        }
         Intersection isect = new Intersection();
         trace(ray, isect);
         if (isect.hitObject != null) {
@@ -281,105 +323,14 @@ public class Scene {
             Vec3D hitColor = new Vec3D();
             switch (isect.hitObject.materialType) {
                 case PHONG:
-                    // DIRECT LIGHTING
-
-                    Vec3D diffuse = new Vec3D(), specular = new Vec3D();
-
-                    Vec3D col;
-                    if (isect.hitObject.texture != null) {
-                        col = isect.hitObject.texture.getColor(props.hitTextureCoordinates);
-                    } else {
-                        col = isect.hitObject.albedo;
-                    }
-
-                    for (Light light : lights) {
-                        Illumination illumination = light.illuminate(hitPoint);
-                        Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)),
-                                illumination.lightDirection.multiply(-1), Ray.RayType.SHADOW_RAY);
-                        stats.addShadowRay();
-                        Intersection shadowIsect = new Intersection();
-                        shadowIsect.tNear = illumination.distance;
-                        trace(shadowRay, shadowIsect);
-                        boolean visible = shadowIsect.hitObject == null;
-                        //System.out.print(visible);
-
-                        if (visible) {
-                            diffuse = diffuse.add(illumination.lightIntensity.multiply(
-                                    Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1)))));
-                            Vec3D r = reflect(illumination.lightDirection, hitNormal);
-                            specular = specular.add(illumination.lightIntensity.multiply(
-                                    Math.pow(Math.max(0, r.dotProduct(ray.direction.multiply(-1))), isect.hitObject.n)));
-                        }
-                    }
-
-                    // INDIRECT LIGHTING
-
-                    Vec3D indirectLighting = new Vec3D();
-
-                    if (useGI || useEnvLight) {
-                        //int N = 16;// / (depth + 1);
-                        Vec3D Nt = new Vec3D(), Nb = new Vec3D();
-                        createCoordinateSystem(hitNormal, Nt, Nb);
-                        double pdf = 1 / (2 * Math.PI);
-
-                        int nsam = Options.renderProgressively ? 1 : N;
-
-                        for (int n = 0; n < nsam; ++n) {
-                            double r1 = generator.nextDouble();
-                            double r2 = generator.nextDouble();
-                            Vec3D sample = uniformSampleHemisphere(r1, r2);
-                            Vec3D sampleWorld = new Vec3D(
-                                    sample.getX() * Nb.getX() + sample.getY() * hitNormal.getX() + sample.getZ() * Nt.getX(),
-                                    sample.getX() * Nb.getY() + sample.getY() * hitNormal.getY() + sample.getZ() * Nt.getY(),
-                                    sample.getX() * Nb.getZ() + sample.getY() * hitNormal.getZ() + sample.getZ() * Nt.getZ());
-                            // don't forget to divide by PDF and multiply by cos(theta)
-                            int dep = useGI ? depth + 1 : maxDepth;
-                            double useMonteCarlo = useGI ? 0 : 1;
-                            Vec3D incomingLight = castRay(new Ray(hitPoint.add(sampleWorld.multiply(bias)), sampleWorld, Ray.RayType.OTHER), dep, new Vec2D(0, useMonteCarlo));
-                            indirectLighting = indirectLighting.add(incomingLight.multiply(r1)); // tu byl blad!!!
-                        }
-
-                        // divide by N
-                        indirectLighting = indirectLighting.multiply(1 / (double) nsam);
-                    }
-
-
-
-                    // correct for specular
-//                    diffuse = depth != 0 ?
-//                    diffuse.multiply(1 / Math.PI).add(indirectLighting.multiply(2)).multiply(col) :
-//                    indirectLighting.multiply(2).multiply(col);
-                    diffuse = diffuse.multiply(1 / Math.PI).add(indirectLighting.multiply(2)).multiply(col);
-
-
-                    hitColor = diffuse.multiply(isect.hitObject.kd).add(specular.multiply(isect.hitObject.ks));
-
-                    // ambient light
-                    Vec3D colo;
-                    if (isect.hitObject.texture != null) {
-                        colo = isect.hitObject.texture.getColor(props.hitTextureCoordinates);
-                    } else {
-                        colo = isect.hitObject.albedo;
-                    }
-                    hitColor = hitColor.add(colo.multiply(ambientLight));
-
-                    // fog
-                    if (renderFog) {
-                        double z = -camera.cameraToWorld.inverse().multiplyPoint(hitPoint).getZ();
-                        if (z >= fogDist) {
-                            hitColor = fogColor;
-                        } else {
-                            double factor = z / fogDist;
-                            hitColor = hitColor.multiply(1 - factor).add(fogColor.multiply(factor));
-                        }
-                    }
+                    hitColor = shadePhong(ray, depth, isect, hitPoint, props, hitNormal, node);
                     break;
                 case REFLECTIVE:
                     boolean outside = ray.direction.dotProduct(hitNormal) < 0;
                     Vec3D bias = hitNormal.multiply(this.bias);
                     Vec3D r = reflect(ray.direction, hitNormal).normalize();
                     Vec3D orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
-                    hitColor = castRay(new Ray(orig, r, Ray.RayType.OTHER), depth + 1, new Vec2D());//.multiply(0.75);
+                    hitColor = castRay(new Ray(orig, r, Ray.RayType.OTHER), depth + 1, new Vec2D(), null);//.multiply(0.75);
                     stats.addReflectionRay();
                     break;
                 case REFLECTIVE_AND_REFRACTIVE:
@@ -392,7 +343,7 @@ public class Scene {
                         Vec3D refractionDirection = refract(ray.direction, hitNormal, isect.hitObject.ior).normalize();
                         Vec3D refractionRayOrig = outside ? hitPoint.subtract(bias) : hitPoint.add(bias);
                         Vec2D len = new Vec2D();
-                        refractionColor = castRay(new Ray(refractionRayOrig, refractionDirection, Ray.RayType.PRIMARY_RAY), depth + 1, len);
+                        refractionColor = castRay(new Ray(refractionRayOrig, refractionDirection, Ray.RayType.PRIMARY_RAY), depth + 1, len, null);
                         stats.addTransmissionRay();
 
 //                        if (outside) {
@@ -405,7 +356,7 @@ public class Scene {
                     }
                     r = reflect(ray.direction, hitNormal).normalize();
                     orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
-                    reflectionColor = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1, new Vec2D());
+                    reflectionColor = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1, new Vec2D(), null);
                     stats.addReflectionRay();
                     //hitColor = hitColor.add(reflectionColor.multiply(kr).add(refractionColor.multiply(1 - kr)));
                     hitColor = hitColor.add(reflectionColor.multiply(kr*1).add(refractionColor.multiply(1 - kr).multiply(1)).multiply(new Vec3D(1, 1, 1)));
@@ -434,32 +385,136 @@ public class Scene {
                     //////////////////////
 
                     break;
-                case CONDUCTOR:
-                    Vec3D reflCol;
-                    double Kr = fresnelConductor(ray.direction, hitNormal, isect.hitObject.ior, isect.hitObject.ior2);
-                    //System.out.println(Kr);
-                    outside = ray.direction.dotProduct(hitNormal) < 0;
-                    bias = hitNormal.multiply(this.bias);
-                    r = reflect(ray.direction, hitNormal).normalize();
-                    orig = outside ? hitPoint.add(bias) : hitPoint.subtract(bias);
-                    reflCol = castRay(new Ray(orig, r, Ray.RayType.PRIMARY_RAY), depth + 1, new Vec2D());
-                    stats.addReflectionRay();
-                    hitColor = reflCol.multiply(1/Kr).multiply(isect.hitObject.albedo);
-                    break;
             }
 
-            if (hitColor.getX() > 1) hitColor.setX(1);
-            if (hitColor.getY() > 1) hitColor.setY(1);
-            if (hitColor.getZ() > 1) hitColor.setZ(1);
-            if (hitColor.getX() < 0) hitColor.setX(0);
-            if (hitColor.getY() < 0) hitColor.setY(0);
-            if (hitColor.getZ() < 0) hitColor.setZ(0);
+//            if (hitColor.getX() > 1) hitColor.setX(1);
+//            if (hitColor.getY() > 1) hitColor.setY(1);
+//            if (hitColor.getZ() > 1) hitColor.setZ(1);
+//            if (hitColor.getX() < 0) hitColor.setX(0);
+//            if (hitColor.getY() < 0) hitColor.setY(0);
+//            if (hitColor.getZ() < 0) hitColor.setZ(0);
+
             return hitColor;
         } else {
             if (useEnvLight) return envLightColor.multiply(envLightIntensity);
             if (useGI) return new Vec3D();
             return backgroundColor;
         }
+    }
+
+    private Vec3D shadePhong(Ray ray, int depth, Intersection isect, Vec3D hitPoint, SurfaceProperties props, Vec3D hitNormal, RayTreesArray.Node node) {
+        Vec3D hitColor;
+        // DIRECT LIGHTING
+
+        Vec3D diffuse = new Vec3D(), specular = new Vec3D();
+
+        Vec3D col;
+        if (isect.hitObject.texture != null) {
+            col = isect.hitObject.texture.getColor(props.hitTextureCoordinates);
+        } else {
+            col = isect.hitObject.albedo;
+        }
+
+        for (Light light : lights) {
+            Illumination illumination = light.illuminate(hitPoint);
+            Ray shadowRay = new Ray(hitPoint.add(hitNormal.multiply(bias)),
+                    illumination.lightDirection.multiply(-1), Ray.RayType.SHADOW_RAY);
+            stats.addShadowRay();
+            Intersection shadowIsect = new Intersection();
+            shadowIsect.tNear = illumination.distance;
+            trace(shadowRay, shadowIsect);
+            boolean visible = shadowIsect.hitObject == null;
+            //System.out.print(visible);
+
+            if (visible) {
+                diffuse = diffuse.add(illumination.lightIntensity.multiply(
+                        Math.max(0, hitNormal.dotProduct(illumination.lightDirection.multiply(-1)))));
+                Vec3D r = reflect(illumination.lightDirection, hitNormal);
+                specular = specular.add(illumination.lightIntensity.multiply(
+                        Math.pow(Math.max(0, r.dotProduct(ray.direction.multiply(-1))), isect.hitObject.n)));
+            }
+        }
+
+        // INDIRECT LIGHTING
+
+        Vec3D indirectLighting = new Vec3D();
+
+        Vec3D Nt = new Vec3D(), Nb = new Vec3D();
+
+        if (useGI || useEnvLight) {
+            //int N = 16;// / (depth + 1);
+
+            createCoordinateSystem(hitNormal, Nt, Nb);
+            //double pdf = 1 / (2 * Math.PI);
+
+            if (depth < maxDepth) {
+                int nsam = Options.renderProgressively ? rayTreesArray.getnSamples() : N;
+
+                for (int n = 0; n < nsam; ++n) {
+                    double r1 = generator.nextDouble();
+                    double r2 = generator.nextDouble();
+                    Vec3D sample = uniformSampleHemisphere(r1, r2);
+                    Vec3D sampleWorld = new Vec3D(
+                            sample.getX() * Nb.getX() + sample.getY() * hitNormal.getX() + sample.getZ() * Nt.getX(),
+                            sample.getX() * Nb.getY() + sample.getY() * hitNormal.getY() + sample.getZ() * Nt.getY(),
+                            sample.getX() * Nb.getZ() + sample.getY() * hitNormal.getZ() + sample.getZ() * Nt.getZ());
+                    // don't forget to divide by PDF and multiply by cos(theta)
+                    int dep = useGI ? depth + 1 : maxDepth;
+                    double useMonteCarlo = useGI ? 0 : 1;
+
+                    RayTreesArray.Node child = null;
+
+                    if (Options.renderProgressively) {
+                        child = rayTreesArray.new Node();
+                        node.addChild(child, r1);
+                    }
+
+                    Ray ray1 = new Ray(hitPoint.add(hitNormal.multiply(bias)), sampleWorld, Ray.RayType.OTHER); // sampleWorld -> hitNormal
+
+                    Vec3D incomingLight = castRay(ray1, dep, new Vec2D(0, useMonteCarlo), child);
+
+                    indirectLighting = indirectLighting.add(incomingLight.multiply(r1));
+                }
+
+                // divide by N
+                indirectLighting = indirectLighting.multiply(1 / (double) nsam);
+            }
+        }
+
+
+        // correct for specular
+//                    diffuse = depth != 0 ?
+//                    diffuse.multiply(1 / Math.PI).add(indirectLighting.multiply(2)).multiply(col) :
+//                    indirectLighting.multiply(2).multiply(col);
+
+        if (Options.renderProgressively && useGI) {
+            node.setInvariants(hitPoint, hitNormal, Nt, Nb, col, diffuse, specular, isect.hitObject.kd, isect.hitObject.ks);
+        }
+
+        diffuse = diffuse.multiply(1 / Math.PI).add(indirectLighting.multiply(2)).multiply(col);
+
+        hitColor = diffuse.multiply(isect.hitObject.kd).add(specular.multiply(isect.hitObject.ks));
+
+        // ambient light
+//        Vec3D colo;
+//        if (isect.hitObject.texture != null) {
+//            colo = isect.hitObject.texture.getColor(props.hitTextureCoordinates);
+//        } else {
+//            colo = isect.hitObject.albedo;
+//        }
+//        hitColor = hitColor.add(colo.multiply(ambientLight));
+
+        // fog
+//        if (renderFog) {
+//            double z = -camera.cameraToWorld.inverse().multiplyPoint(hitPoint).getZ();
+//            if (z >= fogDist) {
+//                hitColor = fogColor;
+//            } else {
+//                double factor = z / fogDist;
+//                hitColor = hitColor.multiply(1 - factor).add(fogColor.multiply(factor));
+//            }
+//        }
+        return hitColor;
     }
 
     protected void trace(Ray ray, Intersection isect) {

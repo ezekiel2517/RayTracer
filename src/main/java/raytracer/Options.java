@@ -8,4 +8,6 @@ public class Options {
     public static double kEpsilon = 1e-8;
     static boolean renderIncrementally = false;
     static boolean renderProgressively = false;
+    static int width = 640;
+    static int height = 480;
 }

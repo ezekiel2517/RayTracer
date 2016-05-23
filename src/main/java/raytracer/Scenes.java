@@ -17,7 +17,6 @@ public class Scenes {
         sphereo2w.set(3, 1, -0.5 + earthRadius);
         Sphere sphere = new Sphere(sphereo2w, 0.5, new Vec3D(1, 1, 0), Object.MaterialType.PHONG);
         sphere.ior = 0.37;
-        sphere.ior2 = 2.82;
         sphere.texture = Textures.gradient(0, new Vec2D(10, 10));
         Matrix44D plane02w = new Matrix44D();
         plane02w.set(3, 1, -1 + earthRadius);
@@ -83,7 +82,6 @@ public class Scenes {
         sphere2.kd = 1;
         sphere2.ks = 0;
         sphere2.ior = 1.5;
-        sphere2.ior2 = 2.82;
         Matrix44D r2w = new Matrix44D();
         r2w = r2w.rotatedY(90);
         TriangleMesh room = TriangleMesh.createCuboid(16, 6, 16, r2w, false);
@@ -101,7 +99,6 @@ public class Scenes {
         TriangleMesh box = TriangleMesh.createCuboid(2, 2, 2, box2w, true);
         box.materialType = Object.MaterialType.PHONG;
         box.ior = 0.37;
-        box.ior2 = 2.82;
         box.albedo = new Vec3D(0, 1, 0);
         box.smoothShading = false;
 
@@ -113,7 +110,6 @@ public class Scenes {
         TriangleMesh box2 = TriangleMesh.createCuboid(2, 2, 2, box22w, true);
         box2.materialType = Object.MaterialType.PHONG;
         box2.ior = 0.37;
-        box2.ior2 = 2.82;
         box2.albedo = new Vec3D(0.75, 0.5, 0.25);
         box2.smoothShading = false;
 
@@ -159,7 +155,7 @@ public class Scenes {
         r2w = r2w.rotatedY(90);
         TriangleMesh room = TriangleMesh.createCuboid(16, 6, 16, r2w, false);
         room.materialType = Object.MaterialType.PHONG;
-        room.texture = Textures.checkerboard(0, new Vec2D(4, 2), new Vec3D(), new Vec3D(1, 1, 1));
+        room.texture = Textures.checkerboard(0, new Vec2D(4, 2), new Vec3D(0.5, 1, 0.5), new Vec3D(1, 1, 1));
         room.smoothShading = false;
         room.kd = 1;
         room.ks = 0;
@@ -191,7 +187,7 @@ public class Scenes {
         l2w1.set(3, 0, -4);
         l2w1.set(3, 1, 0);
         l2w1.set(3, 2, -4);
-        PointLight light1 = new PointLight(l2w1, new Vec3D(0, 0, 1), 200);
+        PointLight light1 = new PointLight(l2w1, new Vec3D(0, 0.1, 0.2), 400);
 
         Matrix44D l2w3 = new Matrix44D();
         l2w3.set(3, 0, -4);
@@ -203,7 +199,7 @@ public class Scenes {
         l2w2.set(3, 0, 2);
         l2w2.set(3, 1, 0);
         l2w2.set(3, 2, 2);
-        PointLight light2 = new PointLight(l2w2, new Vec3D(1, 1, 1), 100);
+        PointLight light2 = new PointLight(l2w2, new Vec3D(1, 1, 1), 200);
 
         Matrix44D plane2w = new Matrix44D();
         plane2w = plane2w.scaled(new Vec3D(4, 0, 4));
@@ -220,7 +216,7 @@ public class Scenes {
         camera.translate(new Vec3D(0, -1, 0), 1);
         camera.rotate(-10, 10);
         camera.translate(new Vec3D(0, 0, 1), 7.5);
-        return new ScalaScene(new Object[] {sphere1, room, sphere2, box, box2}, new Light[] {light2}, camera);
+        return new ScalaScene(new Object[] {sphere1, room, sphere2, box, box2}, new Light[] {light1, light2}, camera);
     }
 
     public static ScalaScene mirrorFloor(Camera camera) {
@@ -246,7 +242,6 @@ public class Scenes {
         Sphere sphere3 = new Sphere(new Matrix44D().translated(new Vec3D(1.4, 0 + 1, -5)), 1, new Vec3D(1, 0, 0), Object.MaterialType.PHONG);
         sphere3.texture = Textures.gradient(0, new Vec2D(10, 10));
         sphere.ior = 1.5;
-        sphere.ior2 = 2.82;
         DistantLight distLight1 = new DistantLight(new Matrix44D().rotatedX(-90).rotatedY(0), new Vec3D(1, 1, 1), 3);
         camera.translate(new Vec3D(0, 1, 0), 1.25);
         camera.translate(new Vec3D(0, 0, 1), 4);
@@ -297,7 +292,6 @@ public class Scenes {
         sphere.kd = 1;
         sphere.ks = 0;
         sphere.ior = 1.5;
-        sphere.ior2 = 2.82;
         camera.translate(new Vec3D(0, 0, 1), 4);
         DistantLight light = new DistantLight(new Matrix44D().rotatedX(-90), new Vec3D(1, 1, 1), 3);
         Matrix44D m = new Matrix44D().translated(new Vec3D(0, -1, 0)).scaled(new Vec3D(4, 1, 4));

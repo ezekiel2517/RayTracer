@@ -8,9 +8,7 @@ import java.lang.reflect.Type;
 
 public abstract class Object {
 
-    public double ior2 = 0;
-
-    public enum MaterialType {PHONG, REFLECTIVE, REFLECTIVE_AND_REFRACTIVE, CONDUCTOR}
+    public enum MaterialType {PHONG, REFLECTIVE, REFLECTIVE_AND_REFRACTIVE}
 
     //@Expose
     public Matrix44D objectToWorld;

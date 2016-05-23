@@ -4,7 +4,7 @@ package math;
 
 public class Vec3D {
     //@Expose
-    private double x, y, z;
+    public double x, y, z;
 
     public Vec3D() {
         x = y = z = 0.0;

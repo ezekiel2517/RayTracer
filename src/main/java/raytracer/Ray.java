@@ -13,4 +13,9 @@ public class Ray {
         this.direction = direction.normalize();
         this.type = type;
     }
+
+    @Override
+    public String toString() {
+        return "ray{orig = " + origin + ", dir = " + direction + "}";
+    }
 }

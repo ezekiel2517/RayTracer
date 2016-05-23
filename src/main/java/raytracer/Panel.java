@@ -34,9 +34,18 @@ public class Panel extends JPanel {
 
         @Override
         public void keyPressed(KeyEvent e) {
-            if (worker != null && !worker.isDone()) {
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_V:
+                    if (continueProgRend) {
+                        continueProgRend = false;
+                    }
+                    return;
+            }
+
+            if (renderingInProgress) {
                 return;
             }
+
             switch (e.getKeyCode()) {
                 case KeyEvent.VK_W:
                     camera.translate(new Vec3D(0, 0, -1), movUnit); break;
@@ -56,6 +65,7 @@ public class Panel extends JPanel {
                     camera.rotateY(-keyRotUnit); break;
                 case KeyEvent.VK_R:
                     realTimeMode = !realTimeMode;
+                    continueProgRend = true;
                     break;
                 case KeyEvent.VK_C:
                     camera.reset();
@@ -64,6 +74,7 @@ public class Panel extends JPanel {
                     useAA = !useAA;
                     if (useAA) scene.aa = aa;
                     else scene.aa = 1;
+                    scene.createRayTreesArray(Options.width, Options.height, scene.aa);
                     break;
                 case KeyEvent.VK_X:
                     scene.stats.printStats();
@@ -74,18 +85,20 @@ public class Panel extends JPanel {
                 case KeyEvent.VK_P:
                     Options.renderProgressively = !Options.renderProgressively;
                     break;
-                case KeyEvent.VK_V:
-                    if (continueProgRend) {
-                        continueProgRend = false;
-                    }
-                    break;
                 case KeyEvent.VK_G:
                     scene.useGI = !scene.useGI;
                     break;
+                case KeyEvent.VK_M:
+                    for (int i = 0; i < Options.width; i++) {
+                        for (int j = 0; j < Options.height; j++) {
+                            if (pixels[j * Options.width + i].x == 0 && pixels[j * Options.width + i].y == 0 && pixels[j * Options.width + i].z == 0) {
+                                System.out.println(i + " " + j);
+                                return;
+                            }
+                        }
+                    }
             }
             update();
-            //render();
-            //repaint();
         }
 
         @Override
@@ -99,7 +112,7 @@ public class Panel extends JPanel {
 
         @Override
         public void mouseDragged(MouseEvent e) {
-            if (worker != null && !worker.isDone()) {
+            if (renderingInProgress) {
                 return;
             }
             double rotX = (cursorY - e.getY()) * mouseRotUnit;
@@ -113,21 +126,19 @@ public class Panel extends JPanel {
         }
     }
 
-    class Worker extends SwingWorker<BufferedImage, Void> {
+    class Worker extends SwingWorker<Vec3D[], Void> {
 
         @Override
-        protected BufferedImage doInBackground() throws Exception {
-            if (Options.renderProgressively && !realTimeMode && scene.useGI) {
-                return renderProgressively();
+        protected Vec3D[] doInBackground() throws Exception {
+            if (Options.renderIncrementally) {
+                scene.render(pixels, row, realTimeMode);
+            } else {
+                scene.render(pixels, realTimeMode);
             }
-            if (Options.renderIncrementally && !realTimeMode) {
-                return renderIncrementally();
-            }
-            return render();
+            return pixels;
         }
     }
 
-    private static int width = 640, height = 480;
     private Camera camera = new Camera();
     private ScalaScene scene = Scenes.globalIllum(camera);
     private int cursorX, cursorY;
@@ -141,35 +152,73 @@ public class Panel extends JPanel {
     BufferedImage img;
     Worker worker;
     int row;
-    int maxSamples = 1024;
+    boolean renderingInProgress;
     Timer timer = new Timer(1, new ActionListener() {
         @Override
         public void actionPerformed(ActionEvent e) {
             if (worker.isDone()) {
                 timer.stop();
                 try {
-                    img = worker.get();
-                } catch (InterruptedException e1) {
-                    e1.printStackTrace();
-                } catch (ExecutionException e1) {
+                    pixels = worker.get();
+                } catch (InterruptedException | ExecutionException e1) {
                     e1.printStackTrace();
                 }
-                paintImmediately(0, 0, width, height);
-                if (Options.renderProgressively && !realTimeMode && scene.useGI) {
-                    if (scene.samplesCounter == maxSamples - 1) {
-                        scene.samplesCounter = 0;
-                    } else {
-                        scene.samplesCounter++;
-                        update();
+
+                if (Options.renderIncrementally) {
+                    for (int j = 0; j < Options.width; j++) {
+                        int k = row * Options.width + j;
+                        img.setRGB(j, row, (int) (Math.round(pixels[k].getX() * 255) << 16 |
+                                Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255)));
                     }
-                    return;
-                }
-                if (Options.renderIncrementally && !realTimeMode) {
-                    if (row == height - 1) {
+                    paintImmediately(0, row, Options.width, 1);
+                    if (row == Options.height - 1) {
                         row = 0;
+                        if (Options.renderProgressively && scene.useGI && !realTimeMode) {
+                            try {
+                                print(String.valueOf(scene.getnSamples()));
+                            } catch (IOException e1) {
+                                e1.printStackTrace();
+                            }
+
+                            if (scene.getnSamples() == scene.N || !continueProgRend) {
+                                scene.resetRayTreesArray();
+                                renderingInProgress = false;
+                            } else {
+                                scene.incrnSamples();
+                                update();
+                            }
+                        } else {
+                            renderingInProgress = false;
+                        }
                     } else {
                         row++;
                         update();
+                    }
+                } else {
+                    for (int i = 0; i < Options.height; i++) {
+                        for (int j = 0; j < Options.width; j++) {
+                            int k = i * Options.width + j;
+                            img.setRGB(j, i, (int) (Math.round(pixels[k].getX() * 255) << 16 |
+                                    Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255)));
+                        }
+                    }
+                    paintImmediately(0, 0, Options.width, Options.height);
+                    if (Options.renderProgressively && scene.useGI && !realTimeMode) {
+                        try {
+                            print(String.valueOf(scene.getnSamples()));
+                        } catch (IOException e1) {
+                            e1.printStackTrace();
+                        }
+
+                        if (scene.getnSamples() == scene.N || !continueProgRend) {
+                            scene.resetRayTreesArray();
+                            renderingInProgress = false;
+                        } else {
+                            scene.incrnSamples();
+                            update();
+                        }
+                    } else {
+                        renderingInProgress = false;
                     }
                 }
             }
@@ -180,152 +229,27 @@ public class Panel extends JPanel {
     //int[] ints = new int[width * height];
 
     public Panel() {
-        setPreferredSize(new Dimension(width, height));
+        setPreferredSize(new Dimension(Options.width, Options.height));
         f.setMaximumFractionDigits(3);
         Listener listener = new Listener();
         addKeyListener(listener);
         addMouseListener(listener);
         addMouseMotionListener(listener);
-        pixels = new Vec3D[width * height];
+        pixels = new Vec3D[Options.width * Options.height];
+        img = new BufferedImage(Options.width, Options.height, BufferedImage.TYPE_INT_RGB);
         aa = scene.aa;
         if (!useAA) {
             scene.aa = 1;
         }
+        scene.createRayTreesArray(Options.width, Options.height, scene.aa);
         //render();
     }
 
     public void update() {
-        if (worker != null && !worker.isDone()) {
-            return;
-        }
         worker = new Worker();
         worker.execute();
+        renderingInProgress = true;
         timer.start();
-    }
-
-    private BufferedImage render() {
-        long start = System.nanoTime();
-
-        if (realTimeMode) {
-            scene.renderQuickly(width, height, pixels);
-        } else {
-            scene.render(width, height, pixels);
-        }
-
-        long stop = System.nanoTime();
-        long time1 = stop - start;
-
-        start = System.nanoTime();
-
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                int k = i * width + j;
-                img.setRGB(j, i, (int) (Math.round(pixels[k].getX() * 255) << 16 |
-                        Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255)));
-            }
-        }
-
-//        for (int i = 0; i < height; i++) {
-//            for (int j = 0; j < width; j++) {
-//                int k = i * width + j;
-//                ints[k] = (int) (Math.round(pixels[k].getX() * 255) << 16 |
-//                        Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255));
-//            }
-//        }
-//        img.setRGB(0, 0, width, height, ints, 0, width);
-
-        stop = System.nanoTime();
-        long time2 = stop - start;
-
-        start = System.nanoTime();
-
-        //paintImmediately(0, 0, width, height);
-        //repaint();
-
-        stop = System.nanoTime();
-        long time3 = stop - start;
-
-        printData(time1, time2, time3);
-        return img;
-    }
-
-    private BufferedImage renderProgressively() {
-        long start, stop, time1 = 0, time2 = 0, time3 = 0;
-
-        start = System.nanoTime();
-
-        scene.render(width, height, pixels);
-
-        stop = System.nanoTime();
-        time1 += stop - start;
-
-        start = System.nanoTime();
-
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                int k = i * width + j;
-                img.setRGB(j, i, (int) (Math.round(pixels[k].getX() * 255 / (scene.samplesCounter + 1)) << 16 |
-                        Math.round(pixels[k].getY() * 255 / (scene.samplesCounter + 1)) << 8 |
-                        Math.round(pixels[k].getZ() * 255 / (scene.samplesCounter + 1))));
-            }
-        }
-
-        stop = System.nanoTime();
-        time2 = stop - start;
-
-        start = System.nanoTime();
-
-        //paintImmediately(0, 0, width, height);
-        //repaint();
-
-        stop = System.nanoTime();
-        time3 = stop - start;
-
-        try {
-            print(Integer.toString(scene.samplesCounter + 1));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        //printData(time1, time2, time3);
-        return img;
-    }
-
-    public BufferedImage renderIncrementally() {
-        long start, stop, time1 = 0, time2 = 0, time3 = 0;
-
-
-        start = System.nanoTime();
-
-        scene.render(width, height, row, pixels);
-
-        stop = System.nanoTime();
-        time1 += stop - start;
-
-        start = System.nanoTime();
-
-        //BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-
-        for (int j = 0; j < width; j++) {
-            int k = row * width + j;
-            img.setRGB(j, row, (int) (Math.round(pixels[k].getX() * 255) << 16 |
-                    Math.round(pixels[k].getY() * 255) << 8 | Math.round(pixels[k].getZ() * 255)));
-        }
-
-        stop = System.nanoTime();
-        time2 += stop - start;
-
-        start = System.nanoTime();
-
-        stop = System.nanoTime();
-        time3 += stop - start;
-
-        //printData(time1, time2, time3);
-        return img;
     }
 
     public void printData(long time1, long time2, long time3) {
@@ -365,7 +289,7 @@ public class Panel extends JPanel {
     }
 
     private void renderXYZ(Graphics g) {
-        int xx = 72, yy = height - 72, l = 64;
+        int xx = 72, yy = Options.height - 72, l = 64;
 
         Matrix44D worldToCamera = camera.cameraToWorld.inverse();
 
@@ -405,13 +329,13 @@ public class Panel extends JPanel {
     public static void createUI() {
         JFrame frame = new JFrame("Ray tracer");
         frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        frame.setResizable(false);
         Panel panel = new Panel();
+        //panel.setIgnoreRepaint(true);
         frame.getContentPane().add(panel, BorderLayout.CENTER);
         frame.pack();
         frame.setLocationRelativeTo(null);
         panel.requestFocusInWindow();
-        frame.setResizable(false);
-        //panel.render();
         frame.setVisible(true);
         panel.update();
     }
